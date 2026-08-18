@@ -1,0 +1,126 @@
+# Melengkapi data dummy: satu user per tingkat izin HRIS, agar semua jalur
+# otorisasi bisa diuji lokal sebelum integrasi.
+#
+# MODEL ORGANISASI DI HRIS — tiga lapisan terpisah, bukan satu:
+#
+#   1. users.role          enum Role, HANYA 2 nilai: USER, ADMIN
+#   2. employee.job_level  enum JobLevel, 12 nilai (tangga senioritas):
+#                          Admin, Direktur, Direktur Utama, General Manager,
+#                          Senior Manager, Manager, Junior Manager, Supervisor,
+#                          Coordinator, Specialist, Staff, Non Staff
+#   3. employee.position   teks bebas + relasi ke tabel position (jabatan),
+#                          mis. "Corporate Secretary", "Project Manager Data & IT"
+#
+# PermissionLevel TIDAK disimpan di mana pun — dihitung saat runtime oleh
+# PermissionLevelHelper dari ketiganya:
+#
+#   role = ADMIN                                  -> ADMIN
+#   job_level Direktur/Direktur Utama/General Mgr -> DIRECTOR
+#   job_level staff DAN position=Corporate Secretary -> CORPORATE_SECRETARY
+#   job_level Manager/Junior/Senior/Supervisor/Coordinator -> MANAGER
+#   job_level Specialist/Staff/Non Staff          -> STAFF
+#
+# Pemetaan ke peran portal yang dipakai di sini:
+#   ADMIN, DIRECTOR                 -> ADMIN     (kelola portal, lintas divisi)
+#   CORPORATE_SECRETARY, MANAGER    -> PUBLISHER (terbitkan data divisinya)
+#   STAFF                           -> STAFF     (cari, jelajahi, unduh)
+#
+# Karena itu di sini disimpan tiga hal terpisah:
+#   role                   -> peran portal, dasar otorisasi Satu Data
+#   hris_permission_level  -> hasil hitungan HRIS, direkam untuk pemetaan
+#   job_level              -> bahan mentah asal perhitungan itu
+#
+# HAPUS bersama changeset 00010 saat integrasi HRIS sudah aktif.
+databaseChangeLog:
+  - changeSet:
+      id: "18"
+      author: author
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: hris_permission_level
+                  type: varchar(30)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: job_level
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+
+        # Lengkapi tiga user yang sudah ada
+        - update:
+            tableName: users
+            columns:
+              - column: { name: hris_permission_level, value: "ADMIN" }
+            where: cognito_id = 'dummy-admin'
+        - update:
+            tableName: users
+            columns:
+              - column: { name: hris_permission_level, value: "STAFF" }
+              - column: { name: job_level, value: "Staff" }
+            where: cognito_id = 'dummy-staff'
+        - update:
+            tableName: users
+            columns:
+              - column: { name: hris_permission_level, value: "STAFF" }
+              - column: { name: job_level, value: "Staff" }
+            where: cognito_id = 'dummy-resigned'
+
+        # DIRECTOR -> peran portal ADMIN (akses lintas divisi)
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000004" }
+              - column: { name: cognito_id, value: "dummy-director" }
+              - column: { name: email, value: "direktur@erdigma.co.id" }
+              - column: { name: name, value: "Bagas Direktur Utama" }
+              - column: { name: position, value: "Direktur Utama" }
+              - column: { name: job_level, value: "Direktur Utama" }
+              - column: { name: hris_permission_level, value: "DIRECTOR" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000001" }
+              - column: { name: role, value: "ADMIN" }
+
+        # CORPORATE_SECRETARY -> peran portal PUBLISHER
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000005" }
+              - column: { name: cognito_id, value: "dummy-corpsec" }
+              - column: { name: email, value: "corpsec@erdigma.co.id" }
+              - column: { name: name, value: "Rani Corporate Secretary" }
+              - column: { name: position, value: "Corporate Secretary" }
+              - column: { name: job_level, value: "Staff" }
+              - column: { name: hris_permission_level, value: "CORPORATE_SECRETARY" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000005" }
+              - column: { name: role, value: "PUBLISHER" }
+
+        # MANAGER -> peran portal PUBLISHER
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000006" }
+              - column: { name: cognito_id, value: "dummy-manager" }
+              - column: { name: email, value: "manager.it@erdigma.co.id" }
+              - column: { name: name, value: "Dimas Manager IT" }
+              - column: { name: position, value: "Manager Teknologi Informasi" }
+              - column: { name: job_level, value: "Manager" }
+              - column: { name: hris_permission_level, value: "MANAGER" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000002" }
+              - column: { name: role, value: "PUBLISHER" }
+
+        # USER biasa di HRIS tanpa jabatan struktural -> peran portal STAFF
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000007" }
+              - column: { name: cognito_id, value: "dummy-specialist" }
+              - column: { name: email, value: "specialist@erdigma.co.id" }
+              - column: { name: name, value: "Sinta Data Specialist" }
+              - column: { name: position, value: "Data Specialist" }
+              - column: { name: job_level, value: "Specialist" }
+              - column: { name: hris_permission_level, value: "STAFF" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000001" }
+              - column: { name: role, value: "STAFF" }

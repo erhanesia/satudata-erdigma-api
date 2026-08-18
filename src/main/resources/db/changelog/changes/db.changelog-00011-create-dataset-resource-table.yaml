@@ -1,0 +1,92 @@
+databaseChangeLog:
+  - changeSet:
+      id: "11"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset_resource
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: format_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content_type
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              # Penyimpanan dirujuk lewat provider + key, BUKAN URL, supaya
+              # pindah dari lokal ke S3 tidak mengubah kode maupun skema.
+              - column:
+                  name: storage_provider
+                  type: varchar(30)
+                  defaultValue: LOCAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_key
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: size_bytes
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: checksum_sha256
+                  type: varchar(64)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: dataset_resource
+            baseColumnNames: dataset_id
+            constraintName: dataset_resource_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dataset_resource
+            baseColumnNames: format_id
+            constraintName: dataset_resource_to_format
+            referencedTableName: format
+            referencedColumnNames: id
+        - createIndex:
+            tableName: dataset_resource
+            indexName: dataset_resource_dataset_id_index
+            columns:
+              - column:
+                  name: dataset_id

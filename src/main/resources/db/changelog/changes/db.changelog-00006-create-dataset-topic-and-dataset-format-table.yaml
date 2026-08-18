@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: "6"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset_topics
+            columns:
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: topic_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: dataset_topics
+            columnNames: dataset_id, topic_id
+            constraintName: dataset_topics_pkey
+        - addForeignKeyConstraint:
+            baseTableName: dataset_topics
+            baseColumnNames: dataset_id
+            constraintName: dataset_topics_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dataset_topics
+            baseColumnNames: topic_id
+            constraintName: dataset_topics_to_topic
+            referencedTableName: topic
+            referencedColumnNames: id
+        - createTable:
+            tableName: dataset_formats
+            columns:
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: format_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: dataset_formats
+            columnNames: dataset_id, format_id
+            constraintName: dataset_formats_pkey
+        - addForeignKeyConstraint:
+            baseTableName: dataset_formats
+            baseColumnNames: dataset_id
+            constraintName: dataset_formats_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dataset_formats
+            baseColumnNames: format_id
+            constraintName: dataset_formats_to_format
+            referencedTableName: format
+            referencedColumnNames: id

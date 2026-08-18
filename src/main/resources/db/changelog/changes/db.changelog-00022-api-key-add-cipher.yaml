@@ -1,0 +1,42 @@
+# Menyimpan nilai API key dalam bentuk terenkripsi, supaya tombol "Tampilkan"
+# dan "Salin" di Dasbor Akun bisa dilayani sesuai desain.
+#
+# Sebelumnya hanya hash SHA-256 yang disimpan, sehingga nilai kunci benar-benar
+# tidak ada di mana pun untuk dikembalikan. Keputusan ini diambil sadar oleh tim
+# dengan konsekuensi yang dipahami: siapa pun yang memegang database DAN kunci
+# enkripsi bisa membaca seluruh API key. Karena itu kunci enkripsinya WAJIB
+# datang dari env var, tidak boleh menempel di kode maupun di berkas konfigurasi
+# yang ikut ter-commit.
+#
+# `key_hash` sengaja DIPERTAHANKAN. Verifikasi kunci saat autentikasi mesin nanti
+# tetap memakai hash — membandingkan hash jauh lebih murah daripada mendekripsi,
+# dan berarti jalur autentikasi tidak perlu menyentuh kunci enkripsi sama sekali.
+#
+# Kedua kolom nullable karena tiga kunci yang sudah terlanjur dibuat sebelum
+# perubahan ini tidak punya ciphertext. Untuk kunci itu "Tampilkan" akan menjawab
+# 409 dengan penjelasan, bukan galat yang membingungkan.
+databaseChangeLog:
+  - changeSet:
+      id: "22"
+      author: author
+      changes:
+        - addColumn:
+            tableName: api_key
+            columns:
+              - column:
+                  name: key_cipher
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: key_nonce
+                  type: varchar(64)
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropColumn:
+            tableName: api_key
+            columnName: key_cipher
+        - dropColumn:
+            tableName: api_key
+            columnName: key_nonce

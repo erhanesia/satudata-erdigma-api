@@ -1,0 +1,324 @@
+# Nilai diambil dari this.DATASETS dan this.TABLE_COLS
+# di dalam projectFiles/Satu Data Erdigma.html
+databaseChangeLog:
+  - changeSet:
+      id: "9"
+      author: author
+      changes:
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: slug, value: "penjualan-bulanan" }
+              - column: { name: title, value: "Kinerja Penjualan Bulanan" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000004" }
+              - column: { name: collection_id, value: "d0000000-0000-4000-8000-000000000001" }
+              - column: { name: coverage, value: "Jan 2022 – Jun 2026" }
+              - column: { name: notes, value: "Rangkuman kinerja penjualan per bulan: pendapatan, jumlah transaksi, dan tingkat konversi, dipecah per lini bisnis." }
+              - column: { name: disclaimer, value: "Angka dua periode terakhir bersifat sementara dan dapat direvisi setelah closing." }
+              - column: { name: row_count, valueNumeric: 162 }
+              - column: { name: col_count, valueNumeric: 6 }
+              - column: { name: file_size, value: "420 KB" }
+              - column: { name: downloads, valueNumeric: 184200 }
+              - column: { name: api_calls, valueNumeric: 9800000 }
+              - column: { name: last_updated_at, valueDate: "2026-07-13T08:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000002" }
+              - column: { name: slug, value: "uptime-layanan" }
+              - column: { name: title, value: "Metrik Uptime & Insiden Layanan" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000002" }
+              - column: { name: coverage, value: "Jan 2024 – Jul 2026" }
+              - column: { name: notes, value: "Ketersediaan layanan (uptime), latensi, dan jumlah insiden harian per sistem produksi." }
+              - column: { name: disclaimer, value: "Data 24 jam terakhir belum divalidasi oleh tim SRE." }
+              - column: { name: row_count, valueNumeric: 512000 }
+              - column: { name: col_count, valueNumeric: 8 }
+              - column: { name: file_size, value: "11,8 MB" }
+              - column: { name: downloads, valueNumeric: 96400 }
+              - column: { name: api_calls, valueNumeric: 14200000 }
+              - column: { name: last_updated_at, valueDate: "2026-07-15T02:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000003" }
+              - column: { name: slug, value: "trafik-aplikasi" }
+              - column: { name: title, value: "Trafik Aplikasi Real-time" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000003" }
+              - column: { name: coverage, value: "Real-time" }
+              - column: { name: notes, value: "Jumlah pengguna aktif dan event per fitur, diperbarui tiap 5 menit lewat Real-time API." }
+              - column: { name: disclaimer, value: "Endpoint real-time; unduhan snapshot tidak tersedia." }
+              - column: { name: row_count, valueNumeric: 0 }
+              - column: { name: col_count, valueNumeric: 5 }
+              - column: { name: file_size, value: "API" }
+              - column: { name: downloads, valueNumeric: 41200 }
+              - column: { name: api_calls, valueNumeric: 22800000 }
+              - column: { name: is_realtime, valueBoolean: true }
+              - column: { name: last_updated_at, valueDate: "2026-07-15T00:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000004" }
+              - column: { name: slug, value: "pelatihan-karyawan" }
+              - column: { name: title, value: "Partisipasi Pelatihan Karyawan" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000007" }
+              - column: { name: coverage, value: "2021 – 2025" }
+              - column: { name: notes, value: "Tingkat penyelesaian dan skor program pelatihan karyawan per divisi dan periode." }
+              - column: { name: disclaimer, value: "Data tahun berjalan bersifat estimasi hingga akhir periode." }
+              - column: { name: row_count, valueNumeric: 18400 }
+              - column: { name: col_count, valueNumeric: 7 }
+              - column: { name: file_size, value: "1,1 MB" }
+              - column: { name: downloads, valueNumeric: 73100 }
+              - column: { name: api_calls, valueNumeric: 1200000 }
+              - column: { name: last_updated_at, valueDate: "2026-07-08T10:30:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000005" }
+              - column: { name: slug, value: "utilisasi-sdm" }
+              - column: { name: title, value: "Utilisasi & Kapasitas Tim" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000006" }
+              - column: { name: coverage, value: "Jan 2023 – Jul 2026" }
+              - column: { name: notes, value: "Tingkat utilisasi dan kapasitas tersedia per tim dan proyek aktif." }
+              - column: { name: disclaimer, value: "Dilaporkan mandiri oleh tiap unit kerja." }
+              - column: { name: row_count, valueNumeric: 89000 }
+              - column: { name: col_count, valueNumeric: 6 }
+              - column: { name: file_size, value: "3,4 MB" }
+              - column: { name: downloads, valueNumeric: 118900 }
+              - column: { name: api_calls, valueNumeric: 6100000 }
+              - column: { name: last_updated_at, valueDate: "2026-07-15T05:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000006" }
+              - column: { name: slug, value: "biaya-operasional" }
+              - column: { name: title, value: "Indeks Biaya Operasional" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000005" }
+              - column: { name: collection_id, value: "d0000000-0000-4000-8000-000000000001" }
+              - column: { name: coverage, value: "Q1 2021 – Q2 2026" }
+              - column: { name: notes, value: "Indeks biaya operasional per triwulan dan kategori pengeluaran." }
+              - column: { name: disclaimer, value: "Basis indeks Q1 2021 = 100." }
+              - column: { name: row_count, valueNumeric: 4600 }
+              - column: { name: col_count, valueNumeric: 5 }
+              - column: { name: file_size, value: "620 KB" }
+              - column: { name: downloads, valueNumeric: 52300 }
+              - column: { name: api_calls, valueNumeric: 840000 }
+              - column: { name: last_updated_at, valueDate: "2026-07-01T09:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000007" }
+              - column: { name: slug, value: "cakupan-cabang" }
+              - column: { name: title, value: "Peta Cakupan Cabang & Gudang" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000001" }
+              - column: { name: coverage, value: "Edisi 2026" }
+              - column: { name: notes, value: "Titik lokasi cabang, gudang, dan area layanan dalam format spasial." }
+              - column: { name: disclaimer, value: "Untuk keperluan operasional internal." }
+              - column: { name: row_count, valueNumeric: 514 }
+              - column: { name: col_count, valueNumeric: 4 }
+              - column: { name: file_size, value: "28,6 MB" }
+              - column: { name: downloads, valueNumeric: 64700 }
+              - column: { name: api_calls, valueNumeric: 520000 }
+              - column: { name: last_updated_at, valueDate: "2026-06-12T14:00:00" }
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000008" }
+              - column: { name: slug, value: "engagement-kampanye" }
+              - column: { name: title, value: "Engagement Kampanye Pemasaran" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000008" }
+              - column: { name: coverage, value: "2022 – 2025" }
+              - column: { name: notes, value: "Metrik engagement (reach, klik, konversi) per kampanye dan kanal." }
+              - column: { name: disclaimer, value: "Sebagian kanal mulai dilacak sejak 2023." }
+              - column: { name: row_count, valueNumeric: 9200 }
+              - column: { name: col_count, valueNumeric: 5 }
+              - column: { name: file_size, value: "480 KB" }
+              - column: { name: downloads, valueNumeric: 21800 }
+              - column: { name: api_calls, valueNumeric: 210000 }
+              - column: { name: last_updated_at, valueDate: "2026-06-24T11:00:00" }
+
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000003" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000002" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000004" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000002" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000007" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000003" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000006" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000003" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000007" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000004" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000005" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000004" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000005" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000006" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000003" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000007" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000008" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000007" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000004" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000008" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000002" }
+
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000002" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000002" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000003" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000004" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000004" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000002" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000005" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000005" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000005" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000006" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000007" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000003" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000007" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000004" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000008" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }
+
+        - insert:
+            tableName: dataset_column
+            columns:
+              - column: { name: id, value: "f0000000-0000-4000-8000-000000000001" }
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: machine_name, value: "month" }
+              - column: { name: display_name, value: "Bulan" }
+              - column: { name: data_type, value: "Month" }
+              - column: { name: description, value: "Periode bulanan (YYYY-MM)." }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: dataset_column
+            columns:
+              - column: { name: id, value: "f0000000-0000-4000-8000-000000000002" }
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: machine_name, value: "business_line" }
+              - column: { name: display_name, value: "Lini Bisnis" }
+              - column: { name: data_type, value: "Text" }
+              - column: { name: description, value: "Segmen bisnis penjualan." }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: dataset_column
+            columns:
+              - column: { name: id, value: "f0000000-0000-4000-8000-000000000003" }
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: machine_name, value: "revenue" }
+              - column: { name: display_name, value: "Pendapatan" }
+              - column: { name: data_type, value: "Numeric" }
+              - column: { name: unit, value: "Rp miliar" }
+              - column: { name: description, value: "Total pendapatan pada periode." }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: dataset_column
+            columns:
+              - column: { name: id, value: "f0000000-0000-4000-8000-000000000004" }
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: machine_name, value: "deals" }
+              - column: { name: display_name, value: "Transaksi" }
+              - column: { name: data_type, value: "Numeric" }
+              - column: { name: unit, value: "deal" }
+              - column: { name: description, value: "Jumlah transaksi tercatat." }
+              - column: { name: sort_order, valueNumeric: 4 }
+        - insert:
+            tableName: dataset_column
+            columns:
+              - column: { name: id, value: "f0000000-0000-4000-8000-000000000005" }
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000001" }
+              - column: { name: machine_name, value: "conversion" }
+              - column: { name: display_name, value: "Konversi" }
+              - column: { name: data_type, value: "Numeric" }
+              - column: { name: unit, value: "%" }
+              - column: { name: description, value: "Tingkat konversi lead menjadi deal." }
+              - column: { name: sort_order, valueNumeric: 5 }

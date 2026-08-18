@@ -1,0 +1,99 @@
+databaseChangeLog:
+  - changeSet:
+      id: "14"
+      author: author
+      changes:
+        - createTable:
+            tableName: api_key
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              # Hanya hash yang disimpan. Nilai penuh ditampilkan sekali saat
+              # dibuat, setelah itu tidak bisa diambil lagi dari server.
+              - column:
+                  name: key_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: key_prefix
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tier
+                  type: varchar(50)
+                  defaultValue: STANDARD
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate_limit_per_minute
+                  type: INT
+                  defaultValueNumeric: 5000
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usage_count
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_used_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: revoked_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: api_key
+            baseColumnNames: user_id
+            constraintName: api_key_to_users
+            referencedTableName: users
+            referencedColumnNames: id
+        - createIndex:
+            tableName: api_key
+            indexName: api_key_user_id_index
+            columns:
+              - column:
+                  name: user_id

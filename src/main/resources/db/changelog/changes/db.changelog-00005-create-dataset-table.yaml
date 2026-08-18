@@ -1,0 +1,118 @@
+databaseChangeLog:
+  - changeSet:
+      id: "5"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: slug
+                  type: varchar(150)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: title
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: agency_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: collection_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+              - column:
+                  name: coverage
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: notes
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: disclaimer
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: row_count
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: col_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_size
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: downloads
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: api_calls
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_realtime
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: dataset
+            baseColumnNames: agency_id
+            constraintName: dataset_to_agency
+            referencedTableName: agency
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: dataset
+            baseColumnNames: collection_id
+            constraintName: dataset_to_collection
+            referencedTableName: collection
+            referencedColumnNames: id

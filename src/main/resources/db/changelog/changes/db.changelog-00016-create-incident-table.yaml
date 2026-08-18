@@ -1,0 +1,74 @@
+# Riwayat & jadwal maintenance untuk halaman Status Produk.
+databaseChangeLog:
+  - changeSet:
+      id: "16"
+      author: author
+      changes:
+        - createTable:
+            tableName: incident
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tag
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: detail
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: occurred_label
+                  type: varchar(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: occurred_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - insert:
+            tableName: incident
+            columns:
+              - column: { name: id, value: "10000000-0000-4000-8000-000000000001" }
+              - column: { name: title, value: "Pemeliharaan datastore" }
+              - column: { name: tag, value: "SCHEDULED" }
+              - column: { name: detail, value: "Peningkatan kapasitas; API mungkin lambat sesaat." }
+              - column: { name: occurred_label, value: "20 Jul 2026, 01:00–03:00 WIB" }
+              - column: { name: occurred_at, valueDate: "2026-07-20T01:00:00" }
+        - insert:
+            tableName: incident
+            columns:
+              - column: { name: id, value: "10000000-0000-4000-8000-000000000002" }
+              - column: { name: title, value: "Latensi API meningkat" }
+              - column: { name: tag, value: "RESOLVED" }
+              - column: { name: detail, value: "Teratasi dalam 38 menit. Penyebab: lonjakan trafik." }
+              - column: { name: occurred_label, value: "02 Jul 2026" }
+              - column: { name: occurred_at, valueDate: "2026-07-02T00:00:00" }

@@ -1,0 +1,73 @@
+databaseChangeLog:
+  - changeSet:
+      id: "2"
+      author: author
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: cognito_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+                    unique: true
+              - column:
+                  name: email
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: position
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: agency_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+              - column:
+                  name: role
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: users
+            indexName: users_cognito_id_index
+            columns:
+              - column:
+                  name: cognito_id
+        - addForeignKeyConstraint:
+            baseTableName: users
+            baseColumnNames: agency_id
+            constraintName: users_to_agency
+            referencedTableName: agency
+            referencedColumnNames: id

@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: "7"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset_column
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: machine_name
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: data_type
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: unit
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: description
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: sort_order
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: dataset_column
+            baseColumnNames: dataset_id
+            constraintName: dataset_column_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id

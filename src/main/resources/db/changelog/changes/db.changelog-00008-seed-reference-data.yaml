@@ -1,0 +1,168 @@
+# Nilai diambil dari this.AGENCIES, this.TOPICS, this.FORMATS, dan this.COLLECTIONS
+# di dalam projectFiles/Satu Data Erdigma.html
+databaseChangeLog:
+  - changeSet:
+      id: "8"
+      author: author
+      changes:
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000001" }
+              - column: { name: code, value: "DNA" }
+              - column: { name: name, value: "Divisi Data & Analitik" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: api_calls, valueNumeric: 48200000 }
+              - column: { name: downloads, valueNumeric: 1240000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000002" }
+              - column: { name: code, value: "IT" }
+              - column: { name: name, value: "Divisi Teknologi Informasi" }
+              - column: { name: logo_bg, value: "#7C3AED" }
+              - column: { name: api_calls, valueNumeric: 31500000 }
+              - column: { name: downloads, valueNumeric: 842000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000003" }
+              - column: { name: code, value: "PROD" }
+              - column: { name: name, value: "Divisi Produk" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: api_calls, valueNumeric: 22800000 }
+              - column: { name: downloads, valueNumeric: 521000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000004" }
+              - column: { name: code, value: "SALES" }
+              - column: { name: name, value: "Divisi Penjualan" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: api_calls, valueNumeric: 18300000 }
+              - column: { name: downloads, valueNumeric: 398000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000005" }
+              - column: { name: code, value: "FIN" }
+              - column: { name: name, value: "Divisi Keuangan" }
+              - column: { name: logo_bg, value: "#BE123C" }
+              - column: { name: api_calls, valueNumeric: 12100000 }
+              - column: { name: downloads, valueNumeric: 610000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000006" }
+              - column: { name: code, value: "OPS" }
+              - column: { name: name, value: "Divisi Operasional" }
+              - column: { name: logo_bg, value: "#0EA5A0" }
+              - column: { name: api_calls, valueNumeric: 9400000 }
+              - column: { name: downloads, valueNumeric: 288000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000007" }
+              - column: { name: code, value: "HR" }
+              - column: { name: name, value: "Divisi Sumber Daya Manusia" }
+              - column: { name: logo_bg, value: "#B45309" }
+              - column: { name: api_calls, valueNumeric: 7600000 }
+              - column: { name: downloads, valueNumeric: 455000 }
+        - insert:
+            tableName: agency
+            columns:
+              - column: { name: id, value: "a0000000-0000-4000-8000-000000000008" }
+              - column: { name: code, value: "MKT" }
+              - column: { name: name, value: "Divisi Pemasaran" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: api_calls, valueNumeric: 2100000 }
+              - column: { name: downloads, valueNumeric: 132000 }
+
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000001" }
+              - column: { name: name, value: "Penjualan" }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000002" }
+              - column: { name: name, value: "Pemasaran" }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000003" }
+              - column: { name: name, value: "Keuangan" }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000004" }
+              - column: { name: name, value: "Operasional" }
+              - column: { name: sort_order, valueNumeric: 4 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000005" }
+              - column: { name: name, value: "SDM" }
+              - column: { name: sort_order, valueNumeric: 5 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000006" }
+              - column: { name: name, value: "Produk" }
+              - column: { name: sort_order, valueNumeric: 6 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000007" }
+              - column: { name: name, value: "Teknologi" }
+              - column: { name: sort_order, valueNumeric: 7 }
+        - insert:
+            tableName: topic
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000008" }
+              - column: { name: name, value: "Geospasial" }
+              - column: { name: sort_order, valueNumeric: 8 }
+
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000001" }
+              - column: { name: name, value: "CSV" }
+              - column: { name: sort_order, valueNumeric: 1 }
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000002" }
+              - column: { name: name, value: "XLSX" }
+              - column: { name: sort_order, valueNumeric: 2 }
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000003" }
+              - column: { name: name, value: "GEOJSON" }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000004" }
+              - column: { name: name, value: "KML" }
+              - column: { name: sort_order, valueNumeric: 4 }
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000005" }
+              - column: { name: name, value: "API" }
+              - column: { name: sort_order, valueNumeric: 5 }
+
+        - insert:
+            tableName: collection
+            columns:
+              - column: { name: id, value: "d0000000-0000-4000-8000-000000000001" }
+              - column: { name: slug, value: "komersial" }
+              - column: { name: name, value: "Kinerja Komersial" }
+              - column: { name: description, value: "Kumpulan dataset kinerja komersial — penjualan, biaya operasional, dan margin — untuk analisis tren bisnis jangka panjang." }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000001" }

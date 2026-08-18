@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: "15"
+      author: author
+      changes:
+        - createTable:
+            tableName: subscription
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: channel
+                  type: varchar(30)
+                  defaultValue: EMAIL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: frequency
+                  type: varchar(30)
+                  defaultValue: ON_CHANGE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: subscription
+            baseColumnNames: user_id
+            constraintName: subscription_to_users
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: subscription
+            baseColumnNames: dataset_id
+            constraintName: subscription_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - createIndex:
+            tableName: subscription
+            indexName: subscription_user_id_dataset_id_index
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: dataset_id

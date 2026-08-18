@@ -1,0 +1,48 @@
+# Isi tabel dataset disimpan generik dalam JSONB, bukan satu tabel per dataset.
+# Alasannya: mengganti data cukup hapus baris + impor ulang, tanpa migrasi.
+# Bentuk kolomnya dijelaskan tabel dataset_column.
+databaseChangeLog:
+  - changeSet:
+      id: "12"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset_row
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: row_number
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: data
+                  type: JSONB
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: dataset_row
+            baseColumnNames: dataset_id
+            constraintName: dataset_row_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - createIndex:
+            tableName: dataset_row
+            indexName: dataset_row_dataset_id_row_number_index
+            unique: true
+            columns:
+              - column:
+                  name: dataset_id
+              - column:
+                  name: row_number

@@ -1,0 +1,88 @@
+# Melengkapi identitas dummy agar halaman login punya sesuatu yang layak
+# ditampilkan: satu orang per divisi, dengan jenjang jabatan yang berbeda-beda.
+#
+# ASAL NILAI — dua dari tiga kolom TIDAK dikarang:
+#
+#   job_level   diambil harfiah dari enum JobLevel milik hris-api
+#               (modules/hiringRequest/enums/JobLevel.java). Dua belas nilai
+#               sah, dan hanya itu: Admin, Direktur, Direktur Utama, Manager,
+#               General Manager, Senior Manager, Junior Manager, Supervisor,
+#               Coordinator, Specialist, Staff, Non Staff.
+#
+#   hris_permission_level  hasil dari PermissionLevelHelper hris-api, bukan
+#               tebakan. Pengelompokannya di sana:
+#                 DIRECTOR = Direktur, Direktur Utama, General Manager
+#                 MANAGER  = Manager, Junior Manager, Senior Manager,
+#                            Supervisor, Coordinator
+#                 STAFF    = Specialist, Non Staff, Staff
+#
+#   position    INI yang dikarang. Di HRIS jabatan adalah data (tabel position
+#               dan ref_position), bukan enum — daftarnya cuma ada di database
+#               produksi. Satu-satunya nama jabatan yang tertulis di kode HRIS
+#               adalah "Corporate Secretary", karena dipakai sebagai
+#               perbandingan string. Ketika daftar aslinya tiba, cukup kolom
+#               position yang diganti; job_level dan hris_permission_level
+#               sudah benar sejak sekarang.
+#
+# Setelah changeset ini: 10 user, 8 divisi terwakili seluruhnya, dan 8 dari 12
+# job level terpakai.
+#
+# HAPUS bersama changeset 00010 dan 00018 saat integrasi HRIS sudah aktif.
+databaseChangeLog:
+  - changeSet:
+      id: "19"
+      author: author
+      changes:
+        # dummy-admin sebelumnya tidak punya job_level. Di HRIS itu memang tidak
+        # berpengaruh — role=ADMIN membuat PermissionLevelHelper berhenti lebih
+        # dulu, sebelum employee sempat dibaca. Tapi enum JobLevel punya nilai
+        # "Admin", dan kartu identitas di halaman login jadi timpang tanpa itu.
+        - update:
+            tableName: users
+            columns:
+              - column: { name: job_level, value: "Admin" }
+            where: cognito_id = 'dummy-admin'
+
+        # DIRECTOR kedua, lewat jalur job_level yang berbeda dari Direktur Utama.
+        # Berguna untuk membuktikan pemetaan HRIS, bukan sekadar satu contoh.
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000008" }
+              - column: { name: cognito_id, value: "dummy-gm" }
+              - column: { name: email, value: "gm.produk@erdigma.co.id" }
+              - column: { name: name, value: "Prasetyo Nugroho" }
+              - column: { name: position, value: "General Manager Produk" }
+              - column: { name: job_level, value: "General Manager" }
+              - column: { name: hris_permission_level, value: "DIRECTOR" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000003" }
+              - column: { name: role, value: "ADMIN" }
+
+        # MANAGER lewat Coordinator — jenjang terendah yang masih dihitung
+        # MANAGER oleh HRIS. Batas itu layak ada wakilnya saat menguji otorisasi.
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000009" }
+              - column: { name: cognito_id, value: "dummy-coordinator" }
+              - column: { name: email, value: "koordinator.mkt@erdigma.co.id" }
+              - column: { name: name, value: "Anisa Rahmawati" }
+              - column: { name: position, value: "Koordinator Kampanye Digital" }
+              - column: { name: job_level, value: "Coordinator" }
+              - column: { name: hris_permission_level, value: "MANAGER" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000008" }
+              - column: { name: role, value: "PUBLISHER" }
+
+        # STAFF lewat Non Staff — jenjang paling bawah di enum HRIS.
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000010" }
+              - column: { name: cognito_id, value: "dummy-nonstaff" }
+              - column: { name: email, value: "admin.umum@erdigma.co.id" }
+              - column: { name: name, value: "Yusuf Maulana" }
+              - column: { name: position, value: "Administrasi Umum" }
+              - column: { name: job_level, value: "Non Staff" }
+              - column: { name: hris_permission_level, value: "STAFF" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000007" }
+              - column: { name: role, value: "STAFF" }

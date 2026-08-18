@@ -1,0 +1,92 @@
+# Kolom `views` pada dataset — sel "Total Views" di bilah statistik beranda.
+#
+# Sel kelima di desain memang bernama "Total Views" sejak awal. Sebelum ini
+# portal tidak mencatat kunjungan sama sekali, jadi yang ditampilkan adalah
+# "Panggilan API" — metrik lain yang kebetulan ada datanya. Changeset ini
+# membuat angka yang dimaksud desain benar-benar ada, bukan sekadar berganti
+# label di atas angka yang bukan miliknya.
+#
+# Yang dihitung adalah kunjungan ke halaman detail dataset (GET
+# /api/v1/datasets/{slug}), bukan pengunjung unik: satu orang yang membuka
+# dataset yang sama tiga kali terhitung tiga. Itu pilihan sadar — pengunjung
+# unik butuh identitas per-kunjungan yang disimpan, dan portal ini tidak
+# menyimpan sesi sama sekali (STATELESS).
+#
+# Nilai awalnya diseed seperti `downloads` dan `api_calls` di changeset 00009,
+# dengan alasan yang sama: beranda yang menampilkan nol besar-besar saat
+# didemokan menyesatkan, padahal katalognya sudah berisi. Angkanya karangan dan
+# HARUS dinolkan sebelum portal dipakai sungguhan — lihat changeset 00009 yang
+# membawa utang yang sama.
+#
+# Rasio views:downloads di sekitar 9:1 mengikuti perbandingan yang sama di
+# berkas desain (38,4 jt : 4,38 jt). `trafik-aplikasi` sengaja jauh di luar
+# rasio itu: dataset real-time tanpa berkas, jadi banyak dilihat tapi nyaris
+# tidak pernah diunduh.
+databaseChangeLog:
+  - changeSet:
+      id: "23"
+      author: author
+      changes:
+        - addColumn:
+            tableName: dataset
+            columns:
+              - column:
+                  name: views
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+      rollback:
+        - dropColumn:
+            tableName: dataset
+            columnName: views
+
+  - changeSet:
+      id: "23-seed"
+      author: author
+      changes:
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 1530400 }
+            where: slug = 'penjualan-bulanan'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 742100 }
+            where: slug = 'uptime-layanan'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 1186500 }
+            where: slug = 'trafik-aplikasi'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 511300 }
+            where: slug = 'pelatihan-karyawan'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 848700 }
+            where: slug = 'utilisasi-sdm'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 386200 }
+            where: slug = 'biaya-operasional'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 402900 }
+            where: slug = 'cakupan-cabang'
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 173600 }
+            where: slug = 'engagement-kampanye'
+      rollback:
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: views, valueNumeric: 0 }

@@ -1,0 +1,39 @@
+# User dummy untuk profil auth-dummy. Kolom cognito_id di sini adalah nilai yang
+# dikirim lewat header X-Dummy-Cognito-Sub saat pengujian.
+# HAPUS changeset ini saat integrasi HRIS sudah aktif.
+databaseChangeLog:
+  - changeSet:
+      id: "10"
+      author: author
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000001" }
+              - column: { name: cognito_id, value: "dummy-admin" }
+              - column: { name: email, value: "fahrega@erdigma.co.id" }
+              - column: { name: name, value: "M. Fahrega Ridwan" }
+              - column: { name: position, value: "Project Manager Data & IT" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000001" }
+              - column: { name: role, value: "ADMIN" }
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000002" }
+              - column: { name: cognito_id, value: "dummy-staff" }
+              - column: { name: email, value: "staff.sales@erdigma.co.id" }
+              - column: { name: name, value: "Karyawan Divisi Penjualan" }
+              - column: { name: position, value: "Staff Penjualan" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000004" }
+              - column: { name: role, value: "STAFF" }
+        - insert:
+            tableName: users
+            columns:
+              - column: { name: id, value: "90000000-0000-4000-8000-000000000003" }
+              - column: { name: cognito_id, value: "dummy-resigned" }
+              - column: { name: email, value: "mantan@erdigma.co.id" }
+              - column: { name: name, value: "Karyawan Sudah Resign" }
+              - column: { name: position, value: "Staff Operasional" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000006" }
+              - column: { name: role, value: "STAFF" }
+              - column: { name: deleted_at, valueDate: "2026-06-30T17:00:00" }

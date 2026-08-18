@@ -1,0 +1,92 @@
+# Fitur langganan dihapus dari portal.
+#
+# Alasannya sudah tercatat sejak Milestone 3: desain memuat tombol berlangganan
+# dan tab langganan di dasbor, tapi back-end tidak pernah punya @Scheduled,
+# JavaMailSender, maupun kanal notifikasi apa pun. Artinya berlangganan hanya
+# mencatat niat — tidak ada satu pun pemberitahuan yang terkirim saat dataset
+# diperbarui. Fitur yang tidak melakukan apa-apa lebih baik tidak ada daripada
+# ada dan menjanjikan sesuatu yang tidak terjadi.
+#
+# Changeset 00015 sengaja TIDAK disunting maupun dihapus: ia sudah pernah
+# dijalankan, dan mengubah berkas yang sudah terpasang membuat Liquibase menolak
+# start karena checksum tidak cocok. Jadi tabelnya dibuang lewat changeset baru
+# ini — riwayatnya tetap utuh dan bisa dibaca.
+#
+# Blok rollback di bawah mengembalikan tabel persis seperti bentuk aslinya di
+# 00015, sehingga `liquibase rollback` tetap berfungsi kalau keputusan ini
+# dibatalkan.
+databaseChangeLog:
+  - changeSet:
+      id: "20"
+      author: author
+      changes:
+        - dropTable:
+            tableName: subscription
+      rollback:
+        - createTable:
+            tableName: subscription
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: channel
+                  type: varchar(30)
+                  defaultValue: EMAIL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: frequency
+                  type: varchar(30)
+                  defaultValue: ON_CHANGE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: subscription
+            baseColumnNames: user_id
+            constraintName: subscription_to_users
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableName: subscription
+            baseColumnNames: dataset_id
+            constraintName: subscription_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+        - createIndex:
+            tableName: subscription
+            indexName: subscription_user_id_dataset_id_index
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: dataset_id

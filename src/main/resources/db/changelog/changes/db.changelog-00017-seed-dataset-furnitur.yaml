@@ -1,0 +1,34 @@
+# Dataset ke-9, satu-satunya yang punya berkas nyata dan isi tabel nyata.
+# Berkas & barisnya diimpor oleh CsvSeedRunner dari
+# projectFiles/dataset/furniture_10k_FIXED.csv (profil dev), bukan dari changeset ini.
+databaseChangeLog:
+  - changeSet:
+      id: "17"
+      author: author
+      changes:
+        - insert:
+            tableName: dataset
+            columns:
+              - column: { name: id, value: "e0000000-0000-4000-8000-000000000009" }
+              - column: { name: slug, value: "penjualan-furnitur-2025" }
+              - column: { name: title, value: "Penjualan Furnitur Ritel 2025" }
+              - column: { name: agency_id, value: "a0000000-0000-4000-8000-000000000004" }
+              - column: { name: coverage, value: "Jan – Des 2025" }
+              - column: { name: notes, value: "Transaksi penjualan furnitur ritel sepanjang 2025 per pesanan: produk, kategori, kuantitas, nilai, ongkir, status, dan kota tujuan." }
+              - column: { name: disclaimer, value: "Data internal untuk keperluan analisis. Status refund dan cancelled dihitung apa adanya tanpa rekonsiliasi keuangan." }
+              - column: { name: row_count, valueNumeric: 10000 }
+              - column: { name: col_count, valueNumeric: 17 }
+              - column: { name: file_size, value: "1,4 MB" }
+              - column: { name: downloads, valueNumeric: 0 }
+              - column: { name: api_calls, valueNumeric: 0 }
+              - column: { name: last_updated_at, valueDate: "2026-08-14T13:07:00" }
+        - insert:
+            tableName: dataset_topics
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000009" }
+              - column: { name: topic_id, value: "b0000000-0000-4000-8000-000000000001" }
+        - insert:
+            tableName: dataset_formats
+            columns:
+              - column: { name: dataset_id, value: "e0000000-0000-4000-8000-000000000009" }
+              - column: { name: format_id, value: "c0000000-0000-4000-8000-000000000001" }

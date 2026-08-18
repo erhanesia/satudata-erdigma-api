@@ -1,0 +1,93 @@
+# Tabel `agency` diganti nama menjadi `division`.
+#
+# Istilah `agency` diwarisi dari CKAN, tempat penerbit dataset memang instansi
+# pemerintah. Di portal internal PT Erdigma penerbitnya adalah divisi, dan
+# front-end sejak awal sudah menampilkan kata "Divisi" — sehingga kode dan
+# tampilan memakai dua kosakata berbeda untuk satu hal yang sama. Selisih itu
+# yang dibereskan di sini.
+#
+# Sengaja TIDAK memakai nama `departement` seperti hris-api. Departemen di HRIS
+# adalah unit struktur kepegawaian; divisi di sini adalah penerbit dan
+# penanggung jawab dataset. Keduanya hidup di sistem yang berbeda — justru itu
+# sebabnya kolom `hris_departement_id` ada. Nama yang berbeda membuat batas
+# antar sistem tetap terlihat.
+#
+# Changeset 00001 s.d. 00019 tidak disunting: semuanya sudah terpasang, dan
+# mengubah berkas yang sudah jalan membuat Liquibase menolak start karena
+# checksum tidak cocok. Perubahan nama dilakukan lewat changeset baru ini,
+# mengikuti cara hris-api menangani hal serupa di changeset 00023 mereka.
+#
+# renameTable dan renameColumn di Postgres tidak ikut mengganti nama constraint
+# maupun indeks, jadi keenamnya diganti terpisah lewat SQL di bawah. Kalau
+# dibiarkan, nama seperti `users_to_agency` akan tertinggal di database padahal
+# tabelnya sudah bernama lain.
+databaseChangeLog:
+  - changeSet:
+      id: "21"
+      author: author
+      changes:
+        - renameTable:
+            oldTableName: agency
+            newTableName: division
+
+        - renameColumn:
+            tableName: users
+            oldColumnName: agency_id
+            newColumnName: division_id
+            columnDataType: UUID
+        - renameColumn:
+            tableName: collection
+            oldColumnName: agency_id
+            newColumnName: division_id
+            columnDataType: UUID
+        - renameColumn:
+            tableName: dataset
+            oldColumnName: agency_id
+            newColumnName: division_id
+            columnDataType: UUID
+        - renameColumn:
+            tableName: download_log
+            oldColumnName: agency_code
+            newColumnName: division_code
+            columnDataType: varchar(20)
+
+        - sql:
+            sql: >-
+              ALTER TABLE division RENAME CONSTRAINT agency_pkey TO division_pkey;
+              ALTER TABLE division RENAME CONSTRAINT agency_code_key TO division_code_key;
+              ALTER TABLE users RENAME CONSTRAINT users_to_agency TO users_to_division;
+              ALTER TABLE collection RENAME CONSTRAINT collection_to_agency TO collection_to_division;
+              ALTER TABLE dataset RENAME CONSTRAINT dataset_to_agency TO dataset_to_division;
+              ALTER INDEX agency_hris_departement_id_index RENAME TO division_hris_departement_id_index;
+      rollback:
+        - sql:
+            sql: >-
+              ALTER INDEX division_hris_departement_id_index RENAME TO agency_hris_departement_id_index;
+              ALTER TABLE dataset RENAME CONSTRAINT dataset_to_division TO dataset_to_agency;
+              ALTER TABLE collection RENAME CONSTRAINT collection_to_division TO collection_to_agency;
+              ALTER TABLE users RENAME CONSTRAINT users_to_division TO users_to_agency;
+              ALTER TABLE division RENAME CONSTRAINT division_code_key TO agency_code_key;
+              ALTER TABLE division RENAME CONSTRAINT division_pkey TO agency_pkey;
+        - renameColumn:
+            tableName: download_log
+            oldColumnName: division_code
+            newColumnName: agency_code
+            columnDataType: varchar(20)
+        - renameColumn:
+            tableName: dataset
+            oldColumnName: division_id
+            newColumnName: agency_id
+            columnDataType: UUID
+        - renameColumn:
+            tableName: collection
+            oldColumnName: division_id
+            newColumnName: agency_id
+            columnDataType: UUID
+        - renameColumn:
+            tableName: users
+            oldColumnName: division_id
+            newColumnName: agency_id
+            columnDataType: UUID
+        - renameTable:
+            oldTableName: division
+            newTableName: agency

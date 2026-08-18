@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: "1"
+      author: author
+      changes:
+        - createTable:
+            tableName: agency
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: logo_bg
+                  type: varchar(20)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: hris_departement_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+              - column:
+                  name: api_calls
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: downloads
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: agency
+            indexName: agency_hris_departement_id_index
+            columns:
+              - column:
+                  name: hris_departement_id

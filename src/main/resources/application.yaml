@@ -1,0 +1,100 @@
+spring:
+  application:
+    name: satudata
+
+  profiles:
+    active: ${spring_profiles_active:dev,auth-dummy}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: ${SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+    drop-first: false
+
+  jackson:
+    time-zone: UTC
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+
+server:
+  port: ${SERVER_PORT:8080}
+  # Sejak dispatch ERROR diizinkan lewat rantai keamanan (lihat SecurityConfig),
+  # halaman galat bawaan Spring bisa sampai ke pemanggil.
+  #
+  # Dua baris di bawah menegaskan bawaan Spring Boot yang memang sudah "never".
+  # Ditulis tegas supaya kalau suatu saat devtools ikut terbawa ke lingkungan
+  # non-lokal, jejak tumpukan tidak diam-diam menyala.
+  #
+  # CATATAN yang sudah diuji: di lokal ini setelan berikut TIDAK berlaku —
+  # spring-boot-devtools memaksa include-stacktrace=ALWAYS dan menang atas
+  # berkas konfigurasi. Jadi jejak tumpukan memang masih terlihat saat
+  # `mvnw spring-boot:run`. Itu perilaku devtools yang disengaja dan hanya
+  # terjadi di lokal: devtools ber-scope runtime+optional dan dibuang oleh
+  # goal repackage, sehingga tidak ikut ke jar produksi.
+  error:
+    include-stacktrace: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    # Nama tag diawali angka ("0. Identitas saya", "1. Datasets", ...) supaya
+    # urutan alfabet menghasilkan urutan pemakaian: cek identitas dulu, baru
+    # katalog, baru sisanya. Tanpa sorter ini urutannya mengikuti urutan
+    # pemindaian class — tidak dapat ditebak dan berubah-ubah.
+    tags-sorter: alpha
+    operations-sorter: method
+    # Blok "Try it out" langsung terbuka, tidak perlu diklik satu per satu.
+    try-it-out-enabled: true
+    # Contoh isian dipakai apa adanya, bukan diganti nilai contoh skema.
+    display-request-duration: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MMM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg %n"
+
+custom:
+  stage: ${STAGE:dev}
+
+# Asal data karyawan. Selama profil auth-dummy, base-url tidak dipakai.
+hris:
+  base-url: ${HRIS_BASE_URL:}
+
+satudata:
+  api-key:
+    # Rahasia untuk mengenkripsi nilai API key (AES-256-GCM), supaya tombol
+    # "Tampilkan" di Dasbor Akun bisa dilayani.
+    #
+    # SENGAJA TIDAK PUNYA NILAI BAWAAN. Rahasia yang menempel di berkas
+    # ter-commit sama saja dengan tidak mengenkripsi apa pun — siapa pun yang
+    # bisa membaca repo langsung bisa mendekripsi seluruh kunci. Kalau kosong,
+    # aplikasi menolak start (lihat ApiKeyCipher#init).
+    #
+    # Nilai untuk pengembangan lokal ada di application-dev.yaml.
+    #
+    # ⚠️ Mengganti rahasia ini membuat SELURUH kunci lama tidak bisa didekripsi
+    # lagi. Rotasi berarti pengguna harus membuat kunci baru.
+    encryption-secret: ${APIKEY_ENCRYPTION_SECRET:}

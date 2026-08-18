@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${PROD_DB_HOST}:${PROD_DB_PORT}/${PROD_DB_NAME}
+    driver-class-name: org.postgresql.Driver
+    username: ${PROD_DB_USERNAME}
+    password: ${PROD_DB_PASSWORD}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI}
+
+aws:
+  cognito:
+    region: ${COGNITO_REGION:ap-southeast-1}
+    userPoolId: ${COGNITO_USER_POOL_ID}

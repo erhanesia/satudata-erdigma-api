@@ -1,0 +1,32 @@
+# Postgres bersama untuk seluruh project Erdigma — satu container, banyak database.
+# Project baru TIDAK perlu container baru, cukup tambah database di sini:
+#   docker exec -it erdigma-postgres createdb -U postgres <nama_database>
+#
+# Menyalakan:  docker compose up -d db
+# Mematikan:   docker compose stop db   (jangan `down -v`, itu menghapus volume bersama)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: erdigma-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-satudata}
+    # Host memakai 5433 karena port 5432 sudah dipegang PostgreSQL native
+    # yang terinstal di laptop. Sisi dalam container tetap 5432.
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - erdigma-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  erdigma-pgdata:
+    # Nama volume dipatok eksplisit supaya dipakai bersama lintas project,
+    # tidak ikut diawali nama folder oleh Docker Compose.
+    name: erdigma-pgdata
