@@ -16,4 +16,15 @@ import id.co.erdigma.satudata.entity.User;
 public interface EmployeeDirectory {
 
     Optional<User> findByCognitoId(String cognitoId);
+
+    /**
+     * Varian yang membawa token mentah si pemanggil, untuk implementasi yang
+     * perlu bertanya ke HRIS atas nama orang itu.
+     *
+     * Bawaannya mengabaikan token dan jatuh ke versi di atas, supaya
+     * implementasi yang cukup membaca tabel lokal tidak perlu ikut berubah.
+     */
+    default Optional<User> findByCognitoId(String cognitoId, String accessToken) {
+        return findByCognitoId(cognitoId);
+    }
 }

@@ -41,7 +41,11 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
     public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
         String userId = jwt.getSubject();
 
-        User user = employeeDirectory.findByCognitoId(userId)
+        // Token mentah ikut diteruskan: implementasi HRIS memakainya untuk
+        // menanyakan identitas orang ini ke hris-api atas namanya sendiri.
+        // SecurityContextHolder belum terisi di titik ini — converter justru
+        // yang sedang membangunnya — jadi Jwt inilah satu-satunya sumbernya.
+        User user = employeeDirectory.findByCognitoId(userId, jwt.getTokenValue())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         Set<GrantedAuthority> authorities = new HashSet<>();
