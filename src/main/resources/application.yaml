@@ -37,6 +37,16 @@ spring:
     multipart:
       max-file-size: 10MB
 
+  http:
+    clients:
+      # Tanpa ini, fallback RestClientException di HrisEmployeeDirectory cuma
+      # menyelamatkan kegagalan cepat (mis. connection refused) — hris-api yang
+      # menerima koneksi lalu menggantung tetap menahan permintaan itu di
+      # dalam rantai filter keamanan sampai kolam worker Tomcat habis, dan
+      # portal ini ikut mati.
+      connect-timeout: 2s
+      read-timeout: 5s
+
 server:
   port: ${SERVER_PORT:8080}
   # Sejak dispatch ERROR diizinkan lewat rantai keamanan (lihat SecurityConfig),

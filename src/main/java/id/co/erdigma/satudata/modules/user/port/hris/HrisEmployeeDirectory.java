@@ -55,10 +55,6 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
             @Value("${hris.base-url}") String baseUrl) {
         this.userRepository = userRepository;
         this.divisionRepository = divisionRepository;
-        // Timeout koneksi/baca dipasang oleh HrisRestClientTimeoutCustomizer,
-        // bukan di sini — lihat javadoc kelas itu untuk alasannya (properti
-        // application.yaml yang benar, dan kenapa bukan kode langsung di
-        // constructor ini).
         this.hris = builder.baseUrl(baseUrl).build();
     }
 
