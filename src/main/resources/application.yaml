@@ -100,8 +100,8 @@ custom:
   stage: ${STAGE:dev}
 
 # Asal data karyawan. Selama profil auth-dummy, base-url tidak dipakai.
-# Bawaannya menunjuk hris-api dev; produksi menimpanya lewat HRIS_BASE_URL
-# dengan https://hris.api.zcode.id/api/v1
+# Bawaan di sini menunjuk hris-api dev — nilai untuk produksi dipin di
+# application-prod.yaml, bukan lewat komentar di berkas ini.
 hris:
   base-url: ${HRIS_BASE_URL:https://hris-dev.api.zcode.id/api/v1}
 
