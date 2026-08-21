@@ -5,12 +5,6 @@ spring:
     username: ${PROD_DB_USERNAME}
     password: ${PROD_DB_PASSWORD}
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${COGNITO_ISSUER_URI}
-
 aws:
   cognito:
     region: ${COGNITO_REGION:ap-southeast-1}
