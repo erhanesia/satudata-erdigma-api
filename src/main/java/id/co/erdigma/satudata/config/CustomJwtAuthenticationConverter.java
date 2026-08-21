@@ -37,11 +37,24 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
     }
 
     @Override
-    @Transactional(readOnly = true)
+    // BUKAN readOnly = true. Method ini memicu provisioning: findByCognitoId
+    // dua-argumen menjalankan HrisEmployeeDirectory.upsert(), yang menyimpan
+    // baris baru. readOnly = true di sini membuat propagation REQUIRED milik
+    // upsert() ikut bergabung ke transaksi read-only ini — Spring tidak pernah
+    // menaikkan transaksi read-only jadi read-write — sehingga INSERT-nya
+    // tidak pernah benar-benar commit (FlushMode.MANUAL / JDBC read-only) dan
+    // baris "tersimpan" hanya di memori. Efeknya: updatedAt tidak pernah ada,
+    // masihSegar() selalu false, dan hris-api dipanggil ulang di SETIAP
+    // permintaan, selamanya. Jangan kembalikan readOnly = true di sini.
+    @Transactional
     public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
         String userId = jwt.getSubject();
 
-        User user = employeeDirectory.findByCognitoId(userId)
+        // Token mentah ikut diteruskan: implementasi HRIS memakainya untuk
+        // menanyakan identitas orang ini ke hris-api atas namanya sendiri.
+        // SecurityContextHolder belum terisi di titik ini — converter justru
+        // yang sedang membangunnya — jadi Jwt inilah satu-satunya sumbernya.
+        User user = employeeDirectory.findByCognitoId(userId, jwt.getTokenValue())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         Set<GrantedAuthority> authorities = new HashSet<>();

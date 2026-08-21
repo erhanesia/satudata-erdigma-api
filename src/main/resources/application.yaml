@@ -15,6 +15,16 @@ spring:
       hibernate:
         format_sql: true
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # User pool yang sama dengan hris-api dan Taskfy — lihat
+          # hris-api/src/main/resources/application.properties. Dulu hanya ada
+          # di profil prod, sehingga profil dev tanpa auth-dummy tidak bisa
+          # start sama sekali.
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_9QsfQSnwN}
+
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
@@ -26,6 +36,16 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
+
+  http:
+    clients:
+      # Tanpa ini, fallback RestClientException di HrisEmployeeDirectory cuma
+      # menyelamatkan kegagalan cepat (mis. connection refused) — hris-api yang
+      # menerima koneksi lalu menggantung tetap menahan permintaan itu di
+      # dalam rantai filter keamanan sampai kolam worker Tomcat habis, dan
+      # portal ini ikut mati.
+      connect-timeout: 2s
+      read-timeout: 5s
 
 server:
   port: ${SERVER_PORT:8080}
@@ -80,8 +100,10 @@ custom:
   stage: ${STAGE:dev}
 
 # Asal data karyawan. Selama profil auth-dummy, base-url tidak dipakai.
+# Bawaan di sini menunjuk hris-api dev — nilai untuk produksi dipin di
+# application-prod.yaml, bukan lewat komentar di berkas ini.
 hris:
-  base-url: ${HRIS_BASE_URL:}
+  base-url: ${HRIS_BASE_URL:https://hris-dev.api.zcode.id/api/v1}
 
 satudata:
   api-key:
