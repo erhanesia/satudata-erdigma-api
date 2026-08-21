@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
  * karena GET /api/v1/user/me tidak mengembalikan tingkat izin yang sudah jadi —
  * hanya bahan mentahnya. Kalau HRIS menambah nama jenjang baru, berkas ini yang
  * harus menyusul; log peringatan di bawah yang memberi tahu.
+ * ponytail: salinan daftar ini mungkin ketinggalan nama jenjang baru di HRIS (drifts silently);
+ * konsumsi permission level langsung dari hris-api jika GET /api/v1/user/me kemudian menambahkan field tersebut.
  */
 @Slf4j
 public final class HrisRoleMapper {
@@ -70,6 +72,8 @@ public final class HrisRoleMapper {
         // hris-api melempar IllegalArgumentException di titik ini. Di sini tidak:
         // menolak karyawan sah gara-gara HR menambah nama jenjang baru lebih
         // merugikan daripada memberinya hak terendah. Log-nya yang jadi alarm.
+        // ponytail: jenjang lama memberikan STAFF secara senyap (looks like bug, not crash);
+        // konsumsi permission level langsung dari hris-api untuk menghilangkan fallback ini.
         log.warn("Jenjang jabatan '{}' tidak dikenal — diberi STAFF. Perbarui daftar di HrisRoleMapper.",
                 jobLevel);
         return HrisPermissionLevel.STAFF;
