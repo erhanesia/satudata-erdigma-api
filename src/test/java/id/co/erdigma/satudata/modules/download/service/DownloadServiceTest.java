@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import id.co.erdigma.satudata.entity.User;
-import id.co.erdigma.satudata.exception.BusinessValidationException;
+import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
@@ -65,7 +65,7 @@ class DownloadServiceTest {
     }
 
     @Test
-    @DisplayName("Provider berkas beda dari provider aktif ditolak dan tidak tercatat sebagai unduhan")
+    @DisplayName("Provider berkas beda dari provider aktif dianggap tidak ditemukan dan tidak tercatat sebagai unduhan")
     void providerBerbedaDitolakSebelumTercatat() {
         Dataset dataset = siapkanDataset("contoh");
         DatasetResource resource = new DatasetResource();
@@ -75,7 +75,7 @@ class DownloadServiceTest {
         when(fileStorage.getProviderName()).thenReturn("S3");
 
         assertThatThrownBy(() -> downloadService.download(new User(), "contoh", true, "127.0.0.1", "agent"))
-                .isInstanceOf(BusinessValidationException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("LOCAL")
                 .hasMessageContaining("S3");
 
@@ -86,8 +86,8 @@ class DownloadServiceTest {
     }
 
     @Test
-    @DisplayName("Provider kosong/null (baris peninggalan) tidak digagalkan, tetap boleh diunduh")
-    void providerKosongDianggapCocok() {
+    @DisplayName("Provider null (baris peninggalan) tidak digagalkan, tetap boleh diunduh")
+    void providerNullDianggapCocok() {
         Dataset dataset = siapkanDataset("lawas");
         DatasetResource resource = new DatasetResource();
         resource.setFileName("lawas.csv");
@@ -98,6 +98,24 @@ class DownloadServiceTest {
         when(fileStorage.open(any())).thenReturn(isi);
 
         assertThat(downloadService.download(new User(), "lawas", true, "127.0.0.1", "agent").getContent())
+                .isSameAs(isi);
+
+        verify(downloadLogRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("Provider kosong/spasi (baris peninggalan) tidak digagalkan, tetap boleh diunduh")
+    void providerKosongDianggapCocok() {
+        Dataset dataset = siapkanDataset("lawas-spasi");
+        DatasetResource resource = new DatasetResource();
+        resource.setFileName("lawas-spasi.csv");
+        resource.setStorageProvider("   ");
+        siapkanResource(dataset, resource);
+        when(fileStorage.getProviderName()).thenReturn("S3");
+        InputStream isi = new ByteArrayInputStream("a".getBytes());
+        when(fileStorage.open(any())).thenReturn(isi);
+
+        assertThat(downloadService.download(new User(), "lawas-spasi", true, "127.0.0.1", "agent").getContent())
                 .isSameAs(isi);
 
         verify(downloadLogRepository).save(any());

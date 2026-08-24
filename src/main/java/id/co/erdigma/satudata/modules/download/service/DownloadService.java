@@ -61,15 +61,17 @@ public class DownloadService {
 
         // Hanya satu backend penyimpanan yang aktif per proses. Kalau default
         // provider pernah diganti (mis. LOCAL -> S3), baris lama tetap menunjuk ke
-        // backend lama dan akan salah tempat dicari di backend baru. Baris peninggalan
-        // sebelum kolom ini diisi (null/kosong) dianggap cocok, bukan digagalkan keras.
+        // backend lama dan tidak akan ketemu di backend baru — sama seperti berkas
+        // yang benar-benar hilang, jadi diperlakukan sebagai 404, bukan 400. Baris
+        // peninggalan sebelum kolom ini diisi (null/kosong) dianggap cocok, bukan
+        // digagalkan keras.
         String recordedProvider = resource.getStorageProvider();
         if (recordedProvider != null && !recordedProvider.isBlank()
                 && !recordedProvider.equals(fileStorage.getProviderName())) {
-            throw new BusinessValidationException(
-                    "Berkas " + resource.getFileName() + " tersimpan di penyimpanan "
-                            + recordedProvider + ", sedangkan layanan aktif saat ini adalah "
-                            + fileStorage.getProviderName()
+            throw new ResourceNotFoundException(
+                    "Berkas " + resource.getFileName() + " tidak ditemukan di penyimpanan aktif ("
+                            + fileStorage.getProviderName() + "); berkas ini tersimpan di penyimpanan "
+                            + recordedProvider
                             + ". Hubungi admin untuk memindahkan berkas ke penyimpanan aktif.");
         }
 
