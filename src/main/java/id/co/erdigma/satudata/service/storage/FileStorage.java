@@ -1,6 +1,9 @@
 package id.co.erdigma.satudata.service.storage;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Titik jahit penyimpanan berkas. Seluruh aplikasi hanya mengenal antarmuka
@@ -17,6 +20,20 @@ public interface FileStorage {
     String getProviderName();
 
     StoredFile store(InputStream in, String storageKey, String contentType);
+
+    /**
+     * Menyimpan berkas yang sudah berada di disk. Implementasi bawaan cukup
+     * membuka Path lalu mendelegasikan ke {@link #store(InputStream, String, String)};
+     * implementasi yang bisa mengunggah langsung dari berkas meng-override agar
+     * isinya tidak disalin dua kali.
+     */
+    default StoredFile storeFrom(Path source, String storageKey, String contentType) {
+        try (InputStream in = Files.newInputStream(source)) {
+            return store(in, storageKey, contentType);
+        } catch (IOException e) {
+            throw new IllegalStateException("Gagal membaca sumber: " + source, e);
+        }
+    }
 
     InputStream open(String storageKey);
 

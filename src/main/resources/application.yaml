@@ -99,8 +99,8 @@ satudata:
     # lagi. Rotasi berarti pengguna harus membuat kunci baru.
     encryption-secret: ${APIKEY_ENCRYPTION_SECRET:}
   storage:
-    # LOCAL atau S3. Dibalik ke S3 pada Tugas 3, setelah S3FileStorage ada.
-    provider: ${STORAGE_PROVIDER:LOCAL}
+    # LOCAL atau S3. Setel STORAGE_PROVIDER=LOCAL untuk bekerja tanpa jaringan.
+    provider: ${STORAGE_PROVIDER:S3}
     s3:
       # Bucket yang sama dengan hris-api. Kunci dipisah prefix satudata/{stage}/
       # sehingga dev dan prod tidak saling timpa.

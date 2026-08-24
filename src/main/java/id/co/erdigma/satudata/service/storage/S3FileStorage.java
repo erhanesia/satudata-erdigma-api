@@ -102,6 +102,7 @@ public class S3FileStorage implements FileStorage {
     }
 
     /** Mengunggah langsung dari berkas — importer sudah punya Path, tak perlu disalin ulang. */
+    @Override
     public StoredFile storeFrom(Path source, String storageKey, String contentType) {
         String fullKey = fullKey(storageKey);
         try {

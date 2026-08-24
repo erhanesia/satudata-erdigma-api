@@ -108,13 +108,4 @@ public class LocalFileStorage implements FileStorage {
         }
         return target;
     }
-
-    /** Dipakai importer untuk menulis dari berkas lain tanpa memuat ke memori. */
-    public StoredFile storeFrom(Path source, String storageKey, String contentType) {
-        try (InputStream in = Files.newInputStream(source)) {
-            return store(in, storageKey, contentType);
-        } catch (IOException e) {
-            throw new IllegalStateException("Gagal membaca sumber: " + source, e);
-        }
-    }
 }
