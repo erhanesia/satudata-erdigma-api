@@ -18,14 +18,21 @@ import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
@@ -46,6 +53,9 @@ class S3FileStorageTest {
         final List<byte[]> payloads = new ArrayList<>();
         boolean getMelemparNoSuchKey = false;
         boolean putMelempar = false;
+        boolean headMelemparNoSuchKey = false;
+        boolean deleteMelempar = false;
+        boolean headBucketMelempar = false;
 
         @Override
         public String serviceName() {
@@ -78,6 +88,32 @@ class S3FileStorageTest {
                         .build();
             }
             throw new UnsupportedOperationException("Tidak dipakai tes ini");
+        }
+
+        @Override
+        public HeadObjectResponse headObject(HeadObjectRequest request) {
+            if (headMelemparNoSuchKey) {
+                throw NoSuchKeyException.builder()
+                        .message("The specified key does not exist.")
+                        .build();
+            }
+            return HeadObjectResponse.builder().build();
+        }
+
+        @Override
+        public DeleteObjectResponse deleteObject(DeleteObjectRequest request) {
+            if (deleteMelempar) {
+                throw S3Exception.builder().message("Simulasi galat S3 saat hapus").build();
+            }
+            return DeleteObjectResponse.builder().build();
+        }
+
+        @Override
+        public HeadBucketResponse headBucket(HeadBucketRequest request) {
+            if (headBucketMelempar) {
+                throw S3Exception.builder().message("Simulasi galat S3 saat headBucket").build();
+            }
+            return HeadBucketResponse.builder().build();
         }
     }
 
@@ -194,6 +230,80 @@ class S3FileStorageTest {
         berkasBaruYangTersisa.removeAll(sebelum);
 
         assertThat(berkasBaruYangTersisa).isEmpty();
+    }
+
+    @Test
+    @DisplayName("storeFrom menghitung ukuran dan checksum yang benar, lalu mengunggah isi berkas apa adanya")
+    void storeFromMenghitungUkuranDanChecksum(@TempDir Path tempDir) throws IOException {
+        FakeS3Client fake = new FakeS3Client();
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+        // SHA-256 dari "halo" sudah diverifikasi lewat tes store() di atas
+        // (ukuranDanChecksumDihitung); dipakai ulang di sini karena isi berkasnya sama.
+        byte[] isi = "halo".getBytes(StandardCharsets.UTF_8);
+        Path sumber = tempDir.resolve("contoh.csv");
+        Files.write(sumber, isi);
+
+        StoredFile stored = storage.storeFrom(sumber, "dataset/x/x.csv", "text/csv");
+
+        assertThat(stored.getStorageProvider()).isEqualTo("S3");
+        // Kunci yang dikembalikan tetap relatif — prefix tidak ikut ke database.
+        assertThat(stored.getStorageKey()).isEqualTo("dataset/x/x.csv");
+        assertThat(stored.getSizeBytes()).isEqualTo(4L);
+        assertThat(stored.getChecksumSha256())
+                .isEqualTo("a4e63bcacf6c172ad84f9f4523c8f1acaf33676fa76d3258c67b7e7bbf16d777");
+        assertThat(fake.payloads).hasSize(1);
+        assertThat(fake.payloads.get(0)).isEqualTo(isi);
+        assertThat(fake.puts.get(0).key()).isEqualTo("satudata/dev/dataset/x/x.csv");
+    }
+
+    @Test
+    @DisplayName("exists mengembalikan true ketika objek ada di S3")
+    void existsTrueKetikaObjekAda() {
+        FakeS3Client fake = new FakeS3Client();
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThat(storage.exists("dataset/x/x.csv")).isTrue();
+    }
+
+    @Test
+    @DisplayName("exists mengembalikan false ketika headObject melempar NoSuchKeyException")
+    void existsFalseKetikaHeadObjectNoSuchKey() {
+        FakeS3Client fake = new FakeS3Client();
+        fake.headMelemparNoSuchKey = true;
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThat(storage.exists("dataset/x/x.csv")).isFalse();
+    }
+
+    @Test
+    @DisplayName("delete memetakan SdkException dari deleteObject menjadi IllegalStateException")
+    void deleteMemetakanSdkExceptionJadiIllegalStateException() {
+        FakeS3Client fake = new FakeS3Client();
+        fake.deleteMelempar = true;
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThatThrownBy(() -> storage.delete("dataset/x/x.csv"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Gagal menghapus berkas: dataset/x/x.csv");
+    }
+
+    @Test
+    @DisplayName("isHealthy mengembalikan true ketika headBucket berhasil")
+    void isHealthyTrueKetikaHeadBucketBerhasil() {
+        FakeS3Client fake = new FakeS3Client();
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThat(storage.isHealthy()).isTrue();
+    }
+
+    @Test
+    @DisplayName("isHealthy mengembalikan false ketika headBucket melempar SdkException, bukan menjalarkannya")
+    void isHealthyFalseKetikaHeadBucketGagal() {
+        FakeS3Client fake = new FakeS3Client();
+        fake.headBucketMelempar = true;
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThat(storage.isHealthy()).isFalse();
     }
 
     /**
