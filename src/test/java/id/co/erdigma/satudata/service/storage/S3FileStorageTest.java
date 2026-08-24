@@ -4,9 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +29,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 class S3FileStorageTest {
 
@@ -34,7 +43,9 @@ class S3FileStorageTest {
     private static class FakeS3Client implements S3Client {
 
         final List<PutObjectRequest> puts = new ArrayList<>();
+        final List<byte[]> payloads = new ArrayList<>();
         boolean getMelemparNoSuchKey = false;
+        boolean putMelempar = false;
 
         @Override
         public String serviceName() {
@@ -47,7 +58,15 @@ class S3FileStorageTest {
 
         @Override
         public PutObjectResponse putObject(PutObjectRequest request, RequestBody body) {
+            if (putMelempar) {
+                throw S3Exception.builder().message("Simulasi galat S3 saat unggah").build();
+            }
             puts.add(request);
+            try (InputStream is = body.contentStreamProvider().newStream()) {
+                payloads.add(is.readAllBytes());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
             return PutObjectResponse.builder().build();
         }
 
@@ -128,5 +147,66 @@ class S3FileStorageTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> storage.open("/dataset/x/x.csv"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("Muatan yang benar-benar diunggah ke S3 sama dengan isi yang dihitung sidik jarinya")
+    void muatanYangDiunggahSamaDenganIsiAsli() {
+        FakeS3Client fake = new FakeS3Client();
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+        byte[] isi = "isi berkas yang diunggah ke S3".getBytes(StandardCharsets.UTF_8);
+
+        storage.store(new ByteArrayInputStream(isi), "dataset/x/x.csv", "text/csv");
+
+        assertThat(fake.payloads).hasSize(1);
+        assertThat(fake.payloads.get(0)).isEqualTo(isi);
+    }
+
+    @Test
+    @DisplayName("Galat S3 lain saat unggah menjadi IllegalStateException berpesan Indonesia")
+    void galatUnggahLainJadiIllegalStateException() {
+        FakeS3Client fake = new FakeS3Client();
+        fake.putMelempar = true;
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        assertThatThrownBy(() -> storage.store(
+                new ByteArrayInputStream("halo".getBytes(StandardCharsets.UTF_8)),
+                "dataset/x/x.csv", "text/csv"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Gagal mengunggah berkas ke S3: satudata/dev/dataset/x/x.csv");
+    }
+
+    @Test
+    @DisplayName("Berkas sementara di direktori tmp dibersihkan meski unggahan gagal")
+    void berkasSementaraDibersihkanSaatUnggahGagal() throws IOException {
+        FakeS3Client fake = new FakeS3Client();
+        fake.putMelempar = true;
+        S3FileStorage storage = new S3FileStorage(fake, BUCKET, "dev");
+
+        Set<Path> sebelum = daftarBerkasSementaraSatudata();
+
+        assertThatThrownBy(() -> storage.store(
+                new ByteArrayInputStream("halo".getBytes(StandardCharsets.UTF_8)),
+                "dataset/x/x.csv", "text/csv"))
+                .isInstanceOf(IllegalStateException.class);
+
+        Set<Path> berkasBaruYangTersisa = daftarBerkasSementaraSatudata();
+        berkasBaruYangTersisa.removeAll(sebelum);
+
+        assertThat(berkasBaruYangTersisa).isEmpty();
+    }
+
+    /**
+     * Hanya mencocokkan pola nama berkas sementara milik S3FileStorage
+     * (satudata-*.upload) di java.io.tmpdir, supaya tes ini tidak goyah gara-gara
+     * proses lain menulis ke direktori tmp yang sama.
+     */
+    private Set<Path> daftarBerkasSementaraSatudata() throws IOException {
+        Path tmpDir = Path.of(System.getProperty("java.io.tmpdir"));
+        Set<Path> hasil = new HashSet<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(tmpDir, "satudata-*.upload")) {
+            stream.forEach(hasil::add);
+        }
+        return hasil;
     }
 }
