@@ -50,7 +50,8 @@ diunduh dari instance lain.
 
 `src/main/java/id/co/erdigma/satudata/service/storage/S3FileStorage.java`
 
-- `@Service`, `@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3", matchIfMissing = true)`
+- `@Service`, `@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3")`
+  — kalau properti `satudata.storage.provider` tidak ada sama sekali, tidak ada bean `FileStorage` yang terbentuk dan aplikasi menolak start; penyimpanan wajib dipilih secara eksplisit, tidak boleh dipilihkan diam-diam.
 - `PROVIDER = "S3"` — tersimpan di kolom `dataset_resource.storage_provider`
   yang sudah ada, sehingga baris lama bernilai `LOCAL` tetap terbaca
 

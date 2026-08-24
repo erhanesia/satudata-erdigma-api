@@ -84,7 +84,7 @@ import software.amazon.awssdk.services.s3.S3Client;
  * hris-api, yang menaruh access key plaintext di application.properties.
  */
 @Configuration
-@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3", matchIfMissing = true)
+@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3")
 public class S3Config {
 
     @Bean
@@ -389,7 +389,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  * alasannya di komentar {@link FileStorage}.
  */
 @Service
-@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3", matchIfMissing = true)
+@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3")
 @Slf4j
 public class S3FileStorage implements FileStorage {
 

@@ -20,7 +20,7 @@ import software.amazon.awssdk.services.s3.S3Client;
  * hris-api, yang menaruh access key plaintext di application.properties.
  */
 @Configuration
-@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3", matchIfMissing = true)
+@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "S3")
 public class S3Config {
 
     @Bean
