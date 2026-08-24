@@ -2,6 +2,23 @@ spring:
   application:
     name: satudata
 
+  # Membaca berkas `.env` di akar modul ini, kalau ada.
+  #
+  # Tanpa baris ini `.env` HANYA dibaca Docker Compose — dan hanya untuk
+  # container Postgres. Variabel yang ditujukan ke aplikasi (profil aktif,
+  # HRIS_BASE_URL, COGNITO_*) tidak pernah sampai, sehingga berkasnya tampak
+  # mengatur sesuatu padahal separuh isinya diam saja. Itu jebakan yang sudah
+  # memakan waktu: setelan diubah, server di-restart, dan tidak terjadi apa-apa.
+  #
+  # `optional:` wajib. `.env` tidak ikut git, jadi mesin yang belum membuatnya
+  # (CI, kontributor baru, container produksi yang memakai variabel lingkungan
+  # sungguhan) harus tetap bisa start.
+  #
+  # `[.properties]` memberi tahu Spring cara membaca berkas tanpa ekstensi:
+  # satu `KUNCI=nilai` per baris, `#` sebagai komentar — persis bentuk `.env`.
+  config:
+    import: optional:file:.env[.properties]
+
   profiles:
     active: ${spring_profiles_active:dev,auth-dummy}
 
