@@ -5,13 +5,14 @@ spring:
     username: ${PROD_DB_USERNAME}
     password: ${PROD_DB_PASSWORD}
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${COGNITO_ISSUER_URI}
-
 aws:
   cognito:
     region: ${COGNITO_REGION:ap-southeast-1}
     userPoolId: ${COGNITO_USER_POOL_ID}
+
+# Dipin di sini, tidak diwariskan dari application.yaml — bawaan di sana
+# menunjuk ke hris-dev. Kalau profil prod ikut mewarisi, satu variabel
+# lingkungan yang lupa di-set membuat produksi diam-diam disuplai data (dan
+# peran) dari direktori dev.
+hris:
+  base-url: ${HRIS_BASE_URL:https://hris.api.zcode.id/api/v1}
