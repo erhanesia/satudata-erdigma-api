@@ -59,6 +59,20 @@ public class DownloadService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Dataset " + slug + " belum memiliki berkas untuk diunduh."));
 
+        // Hanya satu backend penyimpanan yang aktif per proses. Kalau default
+        // provider pernah diganti (mis. LOCAL -> S3), baris lama tetap menunjuk ke
+        // backend lama dan akan salah tempat dicari di backend baru. Baris peninggalan
+        // sebelum kolom ini diisi (null/kosong) dianggap cocok, bukan digagalkan keras.
+        String recordedProvider = resource.getStorageProvider();
+        if (recordedProvider != null && !recordedProvider.isBlank()
+                && !recordedProvider.equals(fileStorage.getProviderName())) {
+            throw new BusinessValidationException(
+                    "Berkas " + resource.getFileName() + " tersimpan di penyimpanan "
+                            + recordedProvider + ", sedangkan layanan aktif saat ini adalah "
+                            + fileStorage.getProviderName()
+                            + ". Hubungi admin untuk memindahkan berkas ke penyimpanan aktif.");
+        }
+
         DownloadLog logEntry = new DownloadLog();
         logEntry.setCognitoId(user.getCognitoId());
         logEntry.setUserName(user.getName());
