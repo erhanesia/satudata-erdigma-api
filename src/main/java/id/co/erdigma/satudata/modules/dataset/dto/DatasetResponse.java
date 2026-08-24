@@ -17,9 +17,21 @@ public class DatasetResponse {
     private String slug;
     private String title;
     private DivisionResponseLite division;
+    /** Siapa yang mengunggah. Null untuk dataset seed. */
+    private UploaderResponse uploadedBy;
     private CollectionResponseLite collection;
     private List<String> topics;
     private List<String> formats;
+
+    /**
+     * Posisi jabatan yang boleh melihat dataset ini.
+     *
+     * Kosong berarti terbuka untuk seluruh karyawan. Berisi berarti hanya
+     * pemilik posisi tersebut — plus ADMIN dan pengunggahnya — yang bisa
+     * membuka, membaca isi tabel, dan mengunduhnya. Aturannya di
+     * {@code DatasetAccessGuard}.
+     */
+    private List<String> positions;
     private String coverage;
     private String notes;
     private String disclaimer;

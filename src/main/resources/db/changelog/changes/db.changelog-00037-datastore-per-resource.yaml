@@ -1,0 +1,157 @@
+# Isi tabel dipindahkan dari "milik dataset" menjadi "milik berkas".
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Sampai changeset 36, satu dataset hanya boleh punya SATU tabel: berkas
+# spreadsheet pertama dibaca isinya, sisanya sekadar tersimpan untuk diunduh.
+# Akibatnya, dataset yang memuat CSV dan Excel sekaligus menampilkan tabel di
+# salah satu tab dan tulisan "belum bisa ditampilkan di halaman" di tab yang
+# lain — padahal keduanya spreadsheet yang sama-sama bisa dibaca. Berkas yang
+# sama, kalau diunggah sendirian, tampil dengan baik. Itu bukan batas format,
+# melainkan batas rancangan yang bocor sampai ke muka.
+#
+# CKAN — acuan portal ini — menyimpan datastore per resource, bukan per
+# dataset. Changeset ini mengikutinya: setiap berkas yang bisa dibaca punya
+# baris dan kolomnya sendiri.
+#
+# ---------------------------------------------------------------------------
+# Yang ditambahkan
+#
+# 1. dataset_row.resource_id dan dataset_column.resource_id — penunjuk ke
+#    berkas asal isinya.
+# 2. dataset_resource.row_count / col_count — ukuran tabel milik tiap berkas.
+#    Disimpan, bukan dihitung saat diminta, supaya front-end bisa memutuskan
+#    menampilkan tabel atau kartu unduhan tanpa satu query per berkas.
+#
+# is_table_source (changeset 35) TIDAK dibuang, tapi artinya bergeser: dari
+# "satu-satunya berkas yang dibaca" menjadi "berkas yang ditampilkan lebih
+# dulu". Kolomnya tetap dipakai untuk memilih tab awal dan untuk menentukan
+# angka baris mana yang mewakili dataset di halaman katalog.
+#
+# ---------------------------------------------------------------------------
+# Tentang pengisian data lama
+#
+# Baris dan kolom yang sudah ada semuanya berasal dari satu berkas per dataset,
+# jadi seluruhnya ditunjukkan ke berkas itu. Pemilihannya mendahulukan penanda
+# is_table_source; kalau tidak ada satu pun yang bertanda — mungkin karena
+# berkasnya dari seed — dipakai berkas pertama menurut urutan yang sama dengan
+# yang dipakai API. Yang penting jangan sampai ada baris tanpa penunjuk: baris
+# seperti itu tidak akan pernah muncul di tab mana pun.
+databaseChangeLog:
+  - changeSet:
+      id: "37"
+      author: author
+      changes:
+        - addColumn:
+            tableName: dataset_row
+            columns:
+              - column:
+                  name: resource_id
+                  type: UUID
+
+        - addColumn:
+            tableName: dataset_column
+            columns:
+              - column:
+                  name: resource_id
+                  type: UUID
+
+        - addColumn:
+            tableName: dataset_resource
+            columns:
+              - column:
+                  name: row_count
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: col_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+        # Satu berkas terpilih per dataset, dipakai tiga kali di bawah.
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TEMPORARY TABLE tmp_owner_resource AS
+              SELECT DISTINCT ON (r.dataset_id) r.dataset_id, r.id AS resource_id
+              FROM dataset_resource r
+              JOIN format f ON f.id = r.format_id
+              WHERE r.deleted_at IS NULL
+              ORDER BY r.dataset_id, r.is_table_source DESC, f.sort_order, r.created_at, r.file_name;
+
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_row t
+              SET resource_id = o.resource_id
+              FROM tmp_owner_resource o
+              WHERE o.dataset_id = t.dataset_id AND t.resource_id IS NULL;
+
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_column c
+              SET resource_id = o.resource_id
+              FROM tmp_owner_resource o
+              WHERE o.dataset_id = c.dataset_id AND c.resource_id IS NULL;
+
+        # Angka per berkas dihitung dari isinya sendiri, bukan disalin dari
+        # dataset — dataset.row_count sempat meleset di masa lalu (changeset
+        # 34), dan menyalinnya berarti menyalin kesalahan yang sama ke sini.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_resource r
+              SET row_count = COALESCE((SELECT COUNT(*) FROM dataset_row t WHERE t.resource_id = r.id), 0),
+                  col_count = COALESCE((SELECT COUNT(*) FROM dataset_column c
+                                        WHERE c.resource_id = r.id AND c.deleted_at IS NULL), 0);
+
+        - sql:
+            splitStatements: false
+            sql: |
+              DROP TABLE IF EXISTS tmp_owner_resource;
+
+        # Setiap pembacaan tabel menyaring dengan resource_id lalu mengurutkan
+        # dengan row_number, jadi indeksnya menyusul urutan itu persis.
+        - createIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: row_number
+
+        - createIndex:
+            tableName: dataset_column
+            indexName: idx_dataset_column_resource
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: sort_order
+
+      rollback:
+        - dropIndex:
+            tableName: dataset_column
+            indexName: idx_dataset_column_resource
+        - dropIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+        - dropColumn:
+            tableName: dataset_resource
+            columnName: col_count
+        - dropColumn:
+            tableName: dataset_resource
+            columnName: row_count
+        - dropColumn:
+            tableName: dataset_column
+            columnName: resource_id
+        - dropColumn:
+            tableName: dataset_row
+            columnName: resource_id

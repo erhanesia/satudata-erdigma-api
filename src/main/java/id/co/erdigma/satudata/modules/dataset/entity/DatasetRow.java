@@ -32,6 +32,16 @@ public class DatasetRow {
     @Column(name = "dataset_id", nullable = false)
     private UUID datasetId;
 
+    /**
+     * Berkas asal baris ini.
+     *
+     * Satu dataset boleh memuat beberapa berkas yang sama-sama punya tabel —
+     * misalnya CSV dan Excel berdampingan. Tanpa penunjuk ini, isi keduanya
+     * bercampur di satu tabel dan tidak ada cara memisahkannya lagi.
+     */
+    @Column(name = "resource_id", nullable = false)
+    private UUID resourceId;
+
     @Column(name = "row_number", nullable = false)
     private long rowNumber;
 

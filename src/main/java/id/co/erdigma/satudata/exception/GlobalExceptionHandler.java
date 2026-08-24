@@ -45,6 +45,11 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Anda tidak berhak melakukan tindakan ini."));
     }
 
+    @ExceptionHandler(AccessNotAllowedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessNotAllowed(AccessNotAllowedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(BusinessValidationException.class)
     public ResponseEntity<Map<String, String>> handleBusinessValidation(BusinessValidationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));

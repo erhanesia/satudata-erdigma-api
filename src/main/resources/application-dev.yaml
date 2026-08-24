@@ -13,12 +13,3 @@ server:
 logging:
   level:
     id.co.erdigma.satudata: DEBUG
-
-satudata:
-  api-key:
-    # Nilai pengembangan lokal saja. Aman ter-commit justru KARENA nilainya
-    # publik: siapa pun yang membaca repo tahu rahasianya, jadi tidak ada yang
-    # tergoda memakainya di luar laptop. Profil prod tidak memuat baris ini,
-    # sehingga wajib mengisi env var APIKEY_ENCRYPTION_SECRET atau aplikasi
-    # menolak start.
-    encryption-secret: ${APIKEY_ENCRYPTION_SECRET:dev-only-not-a-real-secret-satudata}

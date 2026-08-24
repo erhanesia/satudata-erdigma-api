@@ -48,7 +48,7 @@ public class CollectionController {
             """)
     @ApiResponse(responseCode = "200", description = "Daftar koleksi berhasil diambil", useReturnTypeSchema = true)
     public ResponseEntity<List<CollectionResponse>> index(@CurrentUser User user) {
-        return ResponseEntity.ok(collectionService.getAll());
+        return ResponseEntity.ok(collectionService.getAll(user));
     }
 
     @GetMapping("/{slug}")
@@ -64,6 +64,6 @@ public class CollectionController {
     })
     public ResponseEntity<CollectionResponse> getById(@CurrentUser User user,
             @Parameter(description = "Slug koleksi. Ambil dari GET /api/v1/collections.", example = "komersial", required = true) @PathVariable String slug) {
-        return ResponseEntity.ok(collectionService.getBySlug(slug));
+        return ResponseEntity.ok(collectionService.getBySlug(user, slug));
     }
 }

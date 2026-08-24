@@ -29,6 +29,13 @@ public class LocalFileStorage implements FileStorage {
 
     public static final String PROVIDER = "LOCAL";
 
+    /**
+     * Penanda berkas contoh: barisnya ada di dataset_resource lengkap dengan
+     * nama, jenis, dan ukuran, tetapi isinya sengaja tidak disertakan ke dalam
+     * repo. Lihat changeset 00028.
+     */
+    public static final String SEED_PROVIDER = "SEED";
+
     @Value("${satudata.storage.local.base-path:${user.home}/.satudata/files}")
     private String basePath;
 

@@ -41,16 +41,16 @@ public class SlugGenerator {
         if (raw == null || raw.isBlank()) {
             return "";
         }
-        String hasil = Normalizer.normalize(raw, Normalizer.Form.NFD)
+        String result = Normalizer.normalize(raw, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "")
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("^-+|-+$", "");
 
-        if (hasil.length() > MAX_LENGTH) {
-            hasil = hasil.substring(0, MAX_LENGTH).replaceAll("-+$", "");
+        if (result.length() > MAX_LENGTH) {
+            result = result.substring(0, MAX_LENGTH).replaceAll("-+$", "");
         }
-        return hasil;
+        return result;
     }
 
     /**

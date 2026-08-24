@@ -26,6 +26,13 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
+      # Batas SELURUH permintaan, bukan per berkas. Wajib disetel sejak satu
+      # dataset boleh memuat beberapa berkas: bawaan Spring untuk nilai ini juga
+      # 10MB, sehingga unggahan tiga berkas @5MB akan ditolak container sebelum
+      # kode aplikasi sempat berjalan — dan galatnya tidak menyebut sebab yang
+      # sesungguhnya. Angkanya sejalan dengan MAX_TOTAL_BYTES di
+      # DatasetUploadService; ubah keduanya bersamaan.
+      max-request-size: 40MB
 
 server:
   port: ${SERVER_PORT:8080}
@@ -83,18 +90,3 @@ custom:
 hris:
   base-url: ${HRIS_BASE_URL:}
 
-satudata:
-  api-key:
-    # Rahasia untuk mengenkripsi nilai API key (AES-256-GCM), supaya tombol
-    # "Tampilkan" di Dasbor Akun bisa dilayani.
-    #
-    # SENGAJA TIDAK PUNYA NILAI BAWAAN. Rahasia yang menempel di berkas
-    # ter-commit sama saja dengan tidak mengenkripsi apa pun — siapa pun yang
-    # bisa membaca repo langsung bisa mendekripsi seluruh kunci. Kalau kosong,
-    # aplikasi menolak start (lihat ApiKeyCipher#init).
-    #
-    # Nilai untuk pengembangan lokal ada di application-dev.yaml.
-    #
-    # ⚠️ Mengganti rahasia ini membuat SELURUH kunci lama tidak bisa didekripsi
-    # lagi. Rotasi berarti pengguna harus membuat kunci baru.
-    encryption-secret: ${APIKEY_ENCRYPTION_SECRET:}

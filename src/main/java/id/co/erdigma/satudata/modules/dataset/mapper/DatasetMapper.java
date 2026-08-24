@@ -13,6 +13,8 @@ import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponseLite;
 import id.co.erdigma.satudata.modules.dataset.dto.FormatResponse;
 import id.co.erdigma.satudata.modules.dataset.dto.TopicResponse;
+import id.co.erdigma.satudata.modules.dataset.dto.UploaderResponse;
+import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetColumn;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
@@ -28,9 +30,20 @@ public interface DatasetMapper {
     @Mapping(target = "resources", ignore = true)
     DatasetResponse toResponse(Dataset dataset);
 
+    // resources dilekatkan belakangan oleh DatasetService lewat satu query
+    // untuk seluruh halaman — bukan per baris.
     @Mapping(target = "topics", source = "topics", qualifiedByName = "toTopicNames")
     @Mapping(target = "formats", source = "formats", qualifiedByName = "toFormatNames")
+    @Mapping(target = "resources", ignore = true)
     DatasetResponseLite toResponseLite(Dataset dataset);
+
+    /**
+     * {@code divisionCode} diambil dari relasi divisi milik user. Kalau user
+     * belum terhubung ke divisi mana pun, MapStruct menghasilkan null dan panel
+     * admin menampilkan "—" — bukan string kosong yang terlihat seperti bug.
+     */
+    @Mapping(target = "divisionCode", source = "division.code")
+    UploaderResponse toUploaderResponse(User user);
 
     List<DatasetColumnResponse> toColumnResponseList(List<DatasetColumn> columns);
 

@@ -1,0 +1,147 @@
+# Membuat "Akses posisi" benar-benar berlaku, bukan sekadar catatan.
+#
+# ---------------------------------------------------------------------------
+# KENAPA PERLU KOLOM BARU, PADAHAL SUDAH ADA users.position
+#
+# HRIS menyimpan DUA hal yang sering tertukar (lihat hris-api,
+# entity/Employee.java):
+#
+#   employee.job_level  -> enum JobLevel, 12 nilai TETAP: Admin, Direktur,
+#                          Direktur Utama, Manager, General Manager, Senior
+#                          Manager, Junior Manager, Supervisor, Coordinator,
+#                          Specialist, Staff, Non Staff
+#   employee.position   -> teks bebas + relasi ke tabel position, isinya nama
+#                          jabatan khas perusahaan seperti "Corporate Secretary"
+#                          atau "Project Manager Data & IT"
+#
+# Daftar sembilan "posisi" pada desain panel admin — Direksi, General Manager,
+# Manager, Project Manager, Team Lead, Data Analyst, Staff Senior, Staff,
+# Magang — bukan salah satu dari keduanya. Enam di antaranya sejajar dengan
+# job_level, tiga sisanya (Project Manager, Team Lead, Data Analyst) sejajar
+# dengan position.
+#
+# Karena itu kolomnya dibuat sendiri, MILIK PORTAL INI, bukan menumpang salah
+# satu kolom HRIS. Menegakkan akses langsung di atas users.position berarti
+# membandingkan "Direksi" dengan "Project Manager Data & IT" dan selalu meleset
+# — setiap karyawan sungguhan akan terkunci dari semua dataset bertag, diam-
+# diam, tanpa satu pun galat yang muncul.
+#
+# Polanya sama persis dengan hris_permission_level yang sudah ada di tabel ini:
+# nilai turunan milik portal, dihitung dari data HRIS lewat pemetaan yang
+# ditulis sekali dan bisa dibaca orang.
+#
+# SAAT INTEGRASI HRIS AKTIF: isi kolom ini dari job_level + position lewat satu
+# helper pemetaan. Selama kolomnya masih kosong, pemiliknya hanya bisa melihat
+# dataset yang tidak bertag — gagal ke arah yang aman, dan kekosongannya
+# terlihat karena bisa di-query.
+databaseChangeLog:
+  - changeSet:
+      id: "32"
+      author: author
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: access_position
+                  type: varchar(60)
+                  constraints:
+                    nullable: true
+
+        # --- Isi untuk user dummy yang sudah ada --------------------------
+        # Diturunkan dari job_level dan position masing-masing, memakai
+        # pemetaan yang sama yang nanti dipakai adaptor HRIS.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE users u
+              SET access_position = v.posisi
+              FROM (VALUES
+                ('dummy-admin',           'Project Manager'),
+                ('dummy-director',        'Direksi'),
+                ('dummy-gm',              'General Manager'),
+                ('dummy-corpsec',         'Manager'),
+                ('dummy-manager',         'Manager'),
+                ('dummy-coordinator',     'Team Lead'),
+                ('dummy-specialist',      'Data Analyst'),
+                ('dummy-staff',           'Staff'),
+                ('dummy-nonstaff',        'Magang'),
+                ('dummy-resigned',        'Staff'),
+                ('dummy-fannisa',         'Data Analyst'),
+                ('dummy-rizky',           'Team Lead'),
+                ('dummy-dimas-aryo',      'Data Analyst'),
+                ('dummy-andri',           'Data Analyst'),
+                ('dummy-amalia',          'Manager'),
+                ('dummy-bagas-nugroho',   'Data Analyst'),
+                ('dummy-salam',           'Data Analyst')
+              ) AS v(cognito_id, posisi)
+              WHERE u.cognito_id = v.cognito_id;
+
+        # --- Satu akun uji untuk SETIAP posisi ------------------------------
+        # Supaya tiap cabang aturan akses bisa dibuktikan dengan masuk sebagai
+        # orangnya, bukan dengan membaca kode.
+        #
+        # Perhatikan Direksi dan General Manager berperan portal ADMIN — itu
+        # konsekuensi pemetaan di changeset 00018 (DIRECTOR -> ADMIN), dan ADMIN
+        # memang melewati pembatasan. Untuk memperagakan pembatasannya, pakai
+        # dummy-pos-analis (boleh) berbanding dummy-pos-staff (tidak boleh).
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO users (id, cognito_id, email, name, position, role,
+                                 hris_permission_level, job_level, access_position,
+                                 division_id, created_at, updated_at)
+              VALUES
+                ('90000000-0000-4000-8000-000000000018', 'dummy-pos-direksi',
+                 'wibowo.hartanto@erdigma.co.id', 'Wibowo Hartanto', 'Direktur Operasi',
+                 'ADMIN', 'DIRECTOR', 'Direktur', 'Direksi',
+                 'a0000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000019', 'dummy-pos-gm',
+                 'ratna.wijayanti@erdigma.co.id', 'Ratna Wijayanti', 'General Manager Produk',
+                 'ADMIN', 'DIRECTOR', 'General Manager', 'General Manager',
+                 'a0000000-0000-4000-8000-000000000003', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000020', 'dummy-pos-manager',
+                 'hendra.saputra@erdigma.co.id', 'Hendra Saputra', 'Manager Infrastruktur',
+                 'PUBLISHER', 'MANAGER', 'Manager', 'Manager',
+                 'a0000000-0000-4000-8000-000000000002', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000021', 'dummy-pos-pm',
+                 'laras.ayuningtyas@erdigma.co.id', 'Laras Ayuningtyas', 'Project Manager Data & IT',
+                 'PUBLISHER', 'MANAGER', 'Junior Manager', 'Project Manager',
+                 'a0000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000022', 'dummy-pos-lead',
+                 'bimo.prakoso@erdigma.co.id', 'Bimo Prakoso', 'Team Lead Backend',
+                 'PUBLISHER', 'MANAGER', 'Supervisor', 'Team Lead',
+                 'a0000000-0000-4000-8000-000000000003', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000023', 'dummy-pos-analis',
+                 'kirana.melati@erdigma.co.id', 'Kirana Melati', 'Data Analyst',
+                 'STAFF', 'STAFF', 'Specialist', 'Data Analyst',
+                 'a0000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000024', 'dummy-pos-staffsenior',
+                 'galih.ramadhan@erdigma.co.id', 'Galih Ramadhan', 'Analis Keuangan Senior',
+                 'STAFF', 'STAFF', 'Specialist', 'Staff Senior',
+                 'a0000000-0000-4000-8000-000000000005', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000025', 'dummy-pos-staff',
+                 'nabila.zahra@erdigma.co.id', 'Nabila Zahra', 'Staf Administrasi Penjualan',
+                 'STAFF', 'STAFF', 'Staff', 'Staff',
+                 'a0000000-0000-4000-8000-000000000004', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000026', 'dummy-pos-magang',
+                 'arif.setiawan@erdigma.co.id', 'Arif Setiawan', 'Magang Sumber Daya Manusia',
+                 'STAFF', 'STAFF', 'Non Staff', 'Magang',
+                 'a0000000-0000-4000-8000-000000000007', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+      rollback:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM users WHERE cognito_id LIKE 'dummy-pos-%';
+        - dropColumn:
+            tableName: users
+            columnName: access_position

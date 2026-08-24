@@ -1,0 +1,93 @@
+# Jejak audit tindakan terhadap dataset — sumber panel "Aktivitas terakhir" di
+# dasbor admin dan tab "Log audit".
+#
+# Mengikuti pola download_log dan sengaja sama alasannya:
+#
+#   - TIDAK memakai soft delete. Baris audit yang bisa dihapus bukan audit.
+#   - TIDAK memakai foreign key ke users maupun dataset. Identitas pelaku dan
+#     objeknya disimpan sebagai NILAI, bukan relasi, supaya barisnya tetap
+#     terbaca setelah user resign atau dataset dihapus. Justru saat itulah
+#     catatan ini paling dibutuhkan.
+#
+# actor_cognito_id boleh kosong: tindakan yang dijalankan sistem (importir seed,
+# pekerjaan terjadwal) tidak punya pelaku manusia.
+databaseChangeLog:
+  - changeSet:
+      id: "25"
+      author: author
+      changes:
+        - createTable:
+            tableName: audit_log
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: actor_cognito_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: actor_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: actor_division_code
+                  type: varchar(20)
+                  constraints:
+                    nullable: true
+              # Nilai enum AuditAction: CREATE, UPDATE, PUBLISH, SUBMIT,
+              # REJECT, ARCHIVE, DELETE.
+              - column:
+                  name: action
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              # Sekarang selalu "dataset". Kolomnya tetap ada supaya koleksi,
+              # divisi, dan API key bisa ikut tercatat tanpa mengubah skema.
+              - column:
+                  name: object_type
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: object_slug
+                  type: varchar(150)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: object_label
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: detail
+                  type: varchar(500)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: recorded_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        # Pembacaan yang paling sering: "tampilkan yang terbaru". Tanpa indeks
+        # ini setiap pembukaan dasbor memindai seluruh tabel.
+        - createIndex:
+            tableName: audit_log
+            indexName: audit_log_recorded_at_index
+            columns:
+              - column:
+                  name: recorded_at
+                  descending: true
+        - createIndex:
+            tableName: audit_log
+            indexName: audit_log_object_slug_index
+            columns:
+              - column:
+                  name: object_slug

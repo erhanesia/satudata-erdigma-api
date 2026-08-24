@@ -1,0 +1,41 @@
+# Memperbaiki cacat pada data dummy changeset 00029.
+#
+# APA YANG SALAH. Waktu tiap baris di sana dibangkitkan dengan menyebar
+# unduhan sepanjang 24 jam penuh untuk setiap tanggal:
+#
+#     (CURRENT_DATE - (29 - hari))::timestamp + make_interval(secs => ... % 86400)
+#
+# Untuk 29 hari pertama itu benar. Untuk HARI INI tidak: hari ini belum selesai,
+# jadi kira-kira separuh barisnya mendarat setelah jam sekarang. Hasilnya log
+# unduhan yang memuat kejadian yang belum terjadi — tanggal di masa depan
+# terpampang di halaman Log, dan grafik 30 hari menghitung unduhan yang belum
+# ada. Batang hari ini jadi tampak penuh padahal harinya baru berjalan separuh.
+#
+# KENAPA CHANGESET BARU, BUKAN MEMPERBAIKI 00029. Changeset yang sudah pernah
+# dijalankan tidak boleh diubah isinya: Liquibase menyimpan checksum-nya, dan
+# mengeditnya membuat aplikasi menolak menyala di setiap database yang sudah
+# terlanjur memakainya.
+#
+# Barisnya dipindahkan, bukan dihapus, supaya jumlah hari ini tetap utuh —
+# hanya jamnya yang dipadatkan ke rentang yang sudah lewat.
+databaseChangeLog:
+  - changeSet:
+      id: "30"
+      author: author
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE download_log
+              SET downloaded_at = CAST(CURRENT_DATE AS timestamp)
+                    + make_interval(secs => (id * 37) % GREATEST(
+                        CAST(EXTRACT(EPOCH FROM (
+                          CAST(CURRENT_TIMESTAMP AS timestamp) - CAST(CURRENT_DATE AS timestamp)
+                        )) AS bigint), 1))
+              WHERE user_agent LIKE '%SatuDataSeed%'
+                AND downloaded_at > CURRENT_TIMESTAMP;
+
+      # Tidak ada jalan kembali yang bermakna: waktu asalnya memang keliru, dan
+      # memulihkannya berarti mengembalikan cacatnya.
+      rollback:
+        - empty

@@ -1,0 +1,44 @@
+# Menyelaraskan lencana jenis berkas dengan berkas yang benar-benar ada.
+#
+# Data acuan awal (changeset 00009) memasang lencana format pada dataset contoh
+# jauh sebelum tabel dataset_resource ada — waktu itu tidak ada berkas apa pun
+# untuk dicocokkan, jadi lencananya berdiri sendiri. Setelah changeset 00028
+# memberi dataset-dataset itu berkas sungguhan, sebagian lencananya jadi tidak
+# berpasangan: "pelatihan-karyawan" mengiklankan CSV padahal berkasnya XLSX dan
+# PDF.
+#
+# Kartu dataset di portal publik membaca lencana ini, sedangkan tabel panel
+# admin membaca daftar berkasnya. Dibiarkan begitu, dua layar akan menyebut
+# jenis berkas yang berbeda untuk dataset yang sama — dan yang salah justru
+# layar yang dilihat orang paling banyak.
+#
+# Hanya dataset yang punya berkas contoh (storage_provider 'SEED') yang
+# disentuh. Dataset yang berkasnya nyata, dan dataset realtime yang memang tidak
+# punya berkas sama sekali, dibiarkan apa adanya.
+databaseChangeLog:
+  - changeSet:
+      id: "31"
+      author: author
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM dataset_formats df
+              WHERE EXISTS (
+                      SELECT 1 FROM dataset_resource r
+                      WHERE r.dataset_id = df.dataset_id
+                        AND r.storage_provider = 'SEED'
+                        AND r.deleted_at IS NULL
+                    )
+                AND NOT EXISTS (
+                      SELECT 1 FROM dataset_resource r
+                      WHERE r.dataset_id = df.dataset_id
+                        AND r.format_id = df.format_id
+                        AND r.deleted_at IS NULL
+                    );
+
+      # Tidak dipulihkan: lencana yang dihapus memang tidak punya berkas
+      # pasangannya, dan mengembalikannya berarti mengembalikan
+      # ketidakcocokannya.
+      rollback:
+        - empty

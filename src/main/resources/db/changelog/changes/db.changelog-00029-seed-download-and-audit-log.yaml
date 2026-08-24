@@ -1,0 +1,137 @@
+# Isi dummy untuk dua panel dasbor admin yang selama ini kosong: grafik
+# "Download harian · 30 hari" dan daftar "Aktivitas terakhir".
+#
+# CARA MEMBACANYA. Baris-baris ini ditulis ke tabel yang sesungguhnya, bukan
+# ditempel di front-end. Artinya endpoint yang membacanya benar-benar
+# menghitung dari database, dan begitu unduhan atau penerbitan sungguhan
+# terjadi, angkanya ikut bergerak tanpa ada kode yang perlu diubah.
+#
+# JENDELA WAKTUNYA RELATIF terhadap saat migrasi dijalankan (CURRENT_DATE),
+# bukan tanggal tetap. Kalau database ini masih dipakai beberapa bulan lagi,
+# grafik 30 hari akan kosong lagi karena datanya sudah lewat jendela. Itu
+# perilaku yang benar — bukan bug. Untuk mengisi ulang, jalankan
+#     DELETE FROM download_log WHERE user_agent LIKE '%SatuDataSeed%';
+# lalu jalankan lagi pernyataan INSERT di changeset ini.
+#
+# Kurva harian mengikuti angka pada desain (820 → 1.950 per hari, total sekitar
+# 41.900 unduhan) supaya bentuk grafiknya bisa dibandingkan dengan mockup.
+#
+# Pemilihan pengunduh dan berkasnya sengaja DETERMINISTIK (aritmetika modulo,
+# bukan random()), supaya dua orang yang menjalankan migrasi ini mendapat isi
+# yang sama dan bisa saling membandingkan layar.
+#
+# CACAT YANG SUDAH DIPERBAIKI DI 00030: rumus waktu di bawah menyebar unduhan
+# sepanjang 24 jam untuk SETIAP tanggal, termasuk hari ini yang belum selesai —
+# sehingga separuh baris hari ini bertanggal di masa depan. Changeset 00030
+# memadatkannya kembali ke rentang yang sudah lewat. Isi changeset ini sengaja
+# dibiarkan apa adanya karena mengubah changeset yang sudah dijalankan akan
+# merusak checksum-nya.
+databaseChangeLog:
+  - changeSet:
+      id: "29"
+      author: author
+      changes:
+
+        # --- Log unduhan: 30 hari ke belakang --------------------------------
+        - sql:
+            splitStatements: false
+            sql: |
+              WITH kurva(hari, jumlah) AS (
+                VALUES (0,820),(1,940),(2,760),(3,1180),(4,1020),(5,1340),
+                       (6,1260),(7,980),(8,1120),(9,1450),(10,1380),(11,1240),
+                       (12,1560),(13,1420),(14,1180),(15,1290),(16,1610),
+                       (17,1520),(18,1380),(19,1460),(20,1720),(21,1640),
+                       (22,1490),(23,1580),(24,1810),(25,1730),(26,1620),
+                       (27,1690),(28,1880),(29,1950)
+              ),
+              pengunduh AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY u.created_at, u.id) - 1 AS n,
+                       COUNT(*) OVER () AS total,
+                       u.cognito_id, u.name, u.email, dv.code AS division_code
+                FROM users u
+                LEFT JOIN division dv ON dv.id = u.division_id
+                WHERE u.deleted_at IS NULL
+              ),
+              berkas AS (
+                SELECT ROW_NUMBER() OVER (ORDER BY d.slug, r.file_name) - 1 AS n,
+                       COUNT(*) OVER () AS total,
+                       d.id AS dataset_id, d.slug,
+                       r.id AS resource_id, r.file_name, r.size_bytes
+                FROM dataset_resource r
+                JOIN dataset d ON d.id = r.dataset_id
+                WHERE r.deleted_at IS NULL AND d.deleted_at IS NULL
+              ),
+              baris AS (
+                SELECT k.hari, (k.hari * 137 + s.i * 31) AS acak
+                FROM kurva k, generate_series(1, k.jumlah) AS s(i)
+              )
+              INSERT INTO download_log
+                (cognito_id, user_name, user_email, division_code,
+                 dataset_id, dataset_slug, resource_id, file_name, size_bytes,
+                 agreement_accepted, ip_address, user_agent, downloaded_at)
+              SELECT p.cognito_id, p.name, p.email, p.division_code,
+                     b.dataset_id, b.slug, b.resource_id, b.file_name, b.size_bytes,
+                     TRUE,
+                     '10.20.' || (baris.acak % 200 + 10) || '.' || (baris.acak % 240 + 5),
+                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SatuDataSeed/1.0',
+                     (CURRENT_DATE - (29 - baris.hari))::timestamp
+                       + make_interval(secs => (baris.acak * 17) % 86400)
+              FROM baris
+              JOIN pengunduh p ON p.n = baris.acak % p.total
+              JOIN berkas b ON b.n = (baris.acak / 7) % b.total;
+
+        # --- Log audit -------------------------------------------------------
+        # Slug-nya memakai slug yang BENAR-BENAR ada di database ini, bukan slug
+        # pada mockup — supaya setiap baris menunjuk ke dataset yang bisa dibuka.
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO audit_log
+                (actor_cognito_id, actor_name, actor_division_code, action,
+                 object_type, object_slug, object_label, detail, recorded_at)
+              SELECT u.cognito_id, u.name, dv.code, v.action,
+                     'dataset', v.slug, d.title, v.detail,
+                     CURRENT_TIMESTAMP - make_interval(hours => v.jam)
+              FROM (VALUES
+                ('dummy-admin',          'UPDATE',  'penjualan-bulanan',
+                 'Memperbarui catatan dan cakupan periode.',                      6),
+                ('dummy-rizky',          'PUBLISH', 'uptime-layanan',
+                 'Menerbitkan berkas metrik bulan berjalan.',                     21),
+                ('dummy-andri',          'SUBMIT',  'biaya-operasional',
+                 'Mengajukan pembaruan indeks untuk ditinjau.',                   24),
+                ('dummy-admin',          'ARCHIVE', 'utilisasi-sdm',
+                 'Diarsipkan; digantikan laporan kapasitas triwulanan.',          28),
+                ('dummy-amalia',         'CREATE',  'pelatihan-karyawan',
+                 'Menambahkan berkas panduan partisipasi.',                       33),
+                ('dummy-salam',          'REJECT',  'engagement-kampanye',
+                 'Ditolak: kolom biaya kampanye belum lengkap.',                  47),
+                ('dummy-fannisa',        'UPDATE',  'penjualan-bulanan',
+                 'Menambahkan kamus kolom dalam format XLSX.',                    52),
+                ('dummy-bagas-nugroho',  'CREATE',  'cakupan-cabang',
+                 'Mengunggah lapisan peta cabang dan gudang.',                    70),
+                ('dummy-dimas-aryo',     'UPDATE',  'trafik-aplikasi',
+                 'Mengubah keterangan menjadi sumber realtime.',                  76),
+                ('dummy-fannisa',        'PUBLISH', 'penjualan-furnitur-2025',
+                 'Menerbitkan data penjualan furnitur ritel.',                    94),
+                ('dummy-rizky',          'UPDATE',  'uptime-layanan',
+                 'Memperbaiki satuan latensi dari detik ke milidetik.',          118),
+                ('dummy-andri',          'PUBLISH', 'biaya-operasional',
+                 'Menerbitkan indeks biaya periode berjalan.',                   139),
+                ('dummy-salam',          'CREATE',  'engagement-kampanye',
+                 'Membuat dataset engagement kampanye pemasaran.',               166),
+                ('dummy-amalia',         'SUBMIT',  'pelatihan-karyawan',
+                 'Mengajukan penambahan data pelatihan semester dua.',           190)
+              ) AS v(cognito_id, action, slug, detail, jam)
+              JOIN users u ON u.cognito_id = v.cognito_id
+              LEFT JOIN division dv ON dv.id = u.division_id
+              JOIN dataset d ON d.slug = v.slug;
+
+      rollback:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM download_log WHERE user_agent LIKE '%SatuDataSeed%';
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM audit_log;

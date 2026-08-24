@@ -20,10 +20,10 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 public class OpenApiConfig {
 
     /** Nama skema JWT — dipakai saat Cognito sudah tersambung. */
-    private static final String SKEMA_BEARER = "bearerAuth";
+    private static final String BEARER_SCHEME = "bearerAuth";
 
     /** Nama skema header dummy — hanya hidup di profil auth-dummy. */
-    private static final String SKEMA_DUMMY = "dummyAuth";
+    private static final String DUMMY_SCHEME = "dummyAuth";
 
     private final Environment environment;
 
@@ -55,7 +55,7 @@ public class OpenApiConfig {
         boolean authDummy = Arrays.asList(environment.getActiveProfiles()).contains("auth-dummy");
 
         Components components = new Components()
-                .addSecuritySchemes(SKEMA_BEARER, new SecurityScheme()
+                .addSecuritySchemes(BEARER_SCHEME, new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")
@@ -64,12 +64,12 @@ public class OpenApiConfig {
         OpenAPI openApi = new OpenAPI()
                 .info(new Info()
                         .title("Satu Data Erdigma API")
-                        .description(deskripsi(authDummy))
+                        .description(description(authDummy))
                         .version("v1"))
                 .components(components);
 
         if (authDummy) {
-            components.addSecuritySchemes(SKEMA_DUMMY, new SecurityScheme()
+            components.addSecuritySchemes(DUMMY_SCHEME, new SecurityScheme()
                     .type(SecurityScheme.Type.APIKEY)
                     .in(SecurityScheme.In.HEADER)
                     .name(DummyAuthFilter.COGNITO_SUB_HEADER)
@@ -80,17 +80,17 @@ public class OpenApiConfig {
             // Skema dummy diletakkan lebih dulu supaya jadi pilihan pertama
             // pada dialog Authorize saat pengembangan.
             openApi.security(List.of(
-                    new SecurityRequirement().addList(SKEMA_DUMMY),
-                    new SecurityRequirement().addList(SKEMA_BEARER)));
+                    new SecurityRequirement().addList(DUMMY_SCHEME),
+                    new SecurityRequirement().addList(BEARER_SCHEME)));
         } else {
-            openApi.security(List.of(new SecurityRequirement().addList(SKEMA_BEARER)));
+            openApi.security(List.of(new SecurityRequirement().addList(BEARER_SCHEME)));
         }
 
         return openApi;
     }
 
-    private String deskripsi(boolean authDummy) {
-        String dasar = """
+    private String description(boolean authDummy) {
+        String base = """
                 Portal data internal PT Erdigma — katalog dataset antar-divisi.
 
                 ---
@@ -137,14 +137,14 @@ public class OpenApiConfig {
                 bukan kerusakan.
                 """;
         if (!authDummy) {
-            return dasar + """
+            return base + """
 
                     ### Autentikasi
 
                     Tekan **Authorize**, pilih `bearerAuth`, lalu tempel token akses Cognito.
                     """;
         }
-        return dasar + """
+        return base + """
 
                 ### Autentikasi — mode pengembangan (profil `auth-dummy`)
 
