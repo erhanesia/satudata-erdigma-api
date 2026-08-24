@@ -3,7 +3,7 @@ spring:
     name: satudata
 
   profiles:
-    active: ${spring_profiles_active:dev,auth-dummy}
+    active: ${spring_profiles_active:dev}
 
   jpa:
     hibernate:
