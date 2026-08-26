@@ -46,6 +46,17 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
     drop-first: false
+    # Context WAJIB disebut, dan bawaannya sengaja `prod`.
+    #
+    # Aturan Liquibase yang mudah menjebak: changeset tanpa context selalu
+    # jalan, DAN kalau saat dijalankan tidak ada context yang disebut sama
+    # sekali, SELURUH changeset jalan -- termasuk yang bertanda `dev`. Artinya
+    # menandai data contoh saja tidak cukup; tanpa baris ini pagarnya diam
+    # tidak berfungsi, dan tidak ada galat yang memberi tahu.
+    #
+    # Bawaan `prod` dipilih supaya lingkungan yang lupa menyetelnya jatuh ke
+    # sisi yang aman: data contoh tidak ikut. Profil dev menimpanya.
+    contexts: ${LIQUIBASE_CONTEXTS:prod}
 
   jackson:
     time-zone: UTC

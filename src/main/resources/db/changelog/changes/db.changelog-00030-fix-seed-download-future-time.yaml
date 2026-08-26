@@ -22,6 +22,9 @@ databaseChangeLog:
   - changeSet:
       id: "30"
       author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
       changes:
         - sql:
             splitStatements: false

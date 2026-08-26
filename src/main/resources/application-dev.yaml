@@ -1,4 +1,9 @@
 spring:
+  # Laptop dan CI memuat data contoh; produksi tidak. Lihat contextFilter pada
+  # changeset seed, dan bawaan `prod` di application.yaml.
+  liquibase:
+    contexts: dev
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:satudata}
     driver-class-name: org.postgresql.Driver

@@ -30,6 +30,9 @@ databaseChangeLog:
   - changeSet:
       id: "29"
       author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
       changes:
 
         # --- Log unduhan: 30 hari ke belakang --------------------------------
