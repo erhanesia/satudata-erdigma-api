@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
@@ -24,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * repo agar tidak ikut ter-commit dan tidak hilang saat `mvn clean`.
  */
 @Service
+@ConditionalOnProperty(name = "satudata.storage.provider", havingValue = "LOCAL")
 @Slf4j
 public class LocalFileStorage implements FileStorage {
 
@@ -105,14 +107,5 @@ public class LocalFileStorage implements FileStorage {
             throw new IllegalArgumentException("Storage key tidak sah: " + storageKey);
         }
         return target;
-    }
-
-    /** Dipakai importer untuk menulis dari berkas lain tanpa memuat ke memori. */
-    public StoredFile storeFrom(Path source, String storageKey, String contentType) {
-        try (InputStream in = Files.newInputStream(source)) {
-            return store(in, storageKey, contentType);
-        } catch (IOException e) {
-            throw new IllegalStateException("Gagal membaca sumber: " + source, e);
-        }
     }
 }
