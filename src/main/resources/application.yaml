@@ -20,7 +20,7 @@ spring:
     import: optional:file:.env[.properties]
 
   profiles:
-    active: ${spring_profiles_active:dev,auth-dummy}
+    active: ${spring_profiles_active:dev}
 
   jpa:
     hibernate:
@@ -129,3 +129,12 @@ custom:
 hris:
   base-url: ${HRIS_BASE_URL:https://hris-dev.api.zcode.id/api/v1}
 
+satudata:
+  storage:
+    # LOCAL atau S3. Setel STORAGE_PROVIDER=LOCAL untuk bekerja tanpa jaringan.
+    provider: ${STORAGE_PROVIDER:S3}
+    s3:
+      # Bucket yang sama dengan hris-api. Kunci dipisah prefix satudata/{stage}/
+      # sehingga dev dan prod tidak saling timpa.
+      bucket: ${AWS_S3_BUCKET:erhanesia-files}
+      region: ${AWS_REGION:ap-southeast-1}

@@ -29,7 +29,7 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRowRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.FormatRepository;
-import id.co.erdigma.satudata.service.storage.LocalFileStorage;
+import id.co.erdigma.satudata.service.storage.FileStorage;
 import id.co.erdigma.satudata.service.storage.StoredFile;
 
 import lombok.RequiredArgsConstructor;
@@ -86,7 +86,7 @@ public class DatasetImportService {
     @Autowired
     private FormatRepository formatRepository;
     @Autowired
-    private LocalFileStorage localFileStorage;
+    private FileStorage fileStorage;
     @Autowired
     private ColumnTypeGuesser columnTypeGuesser;
 
@@ -319,7 +319,7 @@ public class DatasetImportService {
                 ? dataset.getSlug() + "." + extension
                 : dataset.getSlug() + "-" + order + "." + extension;
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
-        StoredFile stored = localFileStorage.storeFrom(source, storageKey, contentType);
+        StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
 
         DatasetResource resource = new DatasetResource();
         resource.setDataset(dataset);
@@ -357,7 +357,7 @@ public class DatasetImportService {
 
         String fileName = dataset.getSlug() + ".csv";
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
-        StoredFile stored = localFileStorage.storeFrom(source, storageKey, contentType);
+        StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
 
         DatasetResource resource = new DatasetResource();
         resource.setDataset(dataset);

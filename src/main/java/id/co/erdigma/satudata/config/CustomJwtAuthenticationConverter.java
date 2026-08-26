@@ -3,7 +3,6 @@ package id.co.erdigma.satudata.config;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,10 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Menerjemahkan token Cognito menjadi authority Spring Security.
  * Klaim {@code sub} dicocokkan ke {@code users.cognito_id}, sama seperti
- * hris-api. Hanya aktif di luar profil auth-dummy.
+ * hris-api.
  */
 @Component
-@Profile("!auth-dummy")
 @Slf4j
 public class CustomJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 

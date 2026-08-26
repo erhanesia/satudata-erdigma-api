@@ -157,8 +157,8 @@ public class DatasetController {
             diam-diam ditambahi angka, karena tautan yang sudah terlanjur dibagikan akan menunjuk
             ke tempat yang salah.
 
-            Perlu peran **ADMIN** atau **PUBLISHER**. Identitas uji yang bisa dipakai:
-            `dummy-admin`, `dummy-director`, `dummy-corpsec`, `dummy-manager`.
+            Perlu peran **ADMIN** atau **PUBLISHER** — di HRIS berarti jenjang direktur,
+            manajerial, atau Corporate Secretary.
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Dataset terbit, berikut isi tabel dan berkasnya", useReturnTypeSchema = true),

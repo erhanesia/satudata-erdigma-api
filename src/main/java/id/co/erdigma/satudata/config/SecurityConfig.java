@@ -1,7 +1,6 @@
 package id.co.erdigma.satudata.config;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 import jakarta.servlet.DispatcherType;
 
@@ -16,7 +15,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -28,16 +26,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
         private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-        private final Optional<CustomJwtAuthenticationConverter> customConverter;
-        private final Optional<DummyAuthFilter> dummyAuthFilter;
+        private final CustomJwtAuthenticationConverter customConverter;
 
         public SecurityConfig(
                         CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
-                        Optional<CustomJwtAuthenticationConverter> customConverter,
-                        Optional<DummyAuthFilter> dummyAuthFilter) {
+                        CustomJwtAuthenticationConverter customConverter) {
                 this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
                 this.customConverter = customConverter;
-                this.dummyAuthFilter = dummyAuthFilter;
         }
 
         public static final String[] PUBLIC_GET_ENDPOINTS = {
@@ -66,11 +61,10 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
                                                 // Galat yang tidak tertangani diteruskan Spring ke /error lewat
                                                 // dispatch ERROR. Dispatch itu masuk ulang ke rantai keamanan tanpa
-                                                // membawa SecurityContext — DummyAuthFilter turunan
-                                                // OncePerRequestFilter, yang memang tidak jalan pada dispatch ERROR.
-                                                // Tanpa baris ini setiap galat menyamar jadi 401 dan pesan aslinya
-                                                // hilang. Yang diizinkan adalah jenis dispatch-nya, bukan URL /error,
-                                                // jadi permintaan dari luar ke /error tetap dijaga seperti biasa.
+                                                // membawa SecurityContext. Tanpa baris ini setiap galat menyamar
+                                                // jadi 401 dan pesan aslinya hilang. Yang diizinkan adalah jenis
+                                                // dispatch-nya, bukan URL /error, jadi permintaan dari luar ke
+                                                // /error tetap dijaga seperti biasa.
                                                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                                                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                                                 .anyRequest().authenticated())
@@ -79,12 +73,8 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .requestCache(requestCache -> requestCache.requestCache(new NullRequestCache()));
 
-                if (dummyAuthFilter.isPresent()) {
-                        http.addFilterBefore(dummyAuthFilter.get(), UsernamePasswordAuthenticationFilter.class);
-                } else {
-                        http.oauth2ResourceServer(oauth -> oauth
-                                        .jwt(jwt -> jwt.jwtAuthenticationConverter(customConverter.orElseThrow())));
-                }
+                http.oauth2ResourceServer(oauth -> oauth
+                                .jwt(jwt -> jwt.jwtAuthenticationConverter(customConverter)));
 
                 return http.build();
         }
@@ -104,9 +94,7 @@ public class SecurityConfig {
                 configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(
-                                Arrays.asList("Authorization", "Content-Type", "X-Requested-With",
-                                                DummyAuthFilter.COGNITO_SUB_HEADER,
-                                                DummyAuthFilter.COGNITO_USERNAME_HEADER));
+                                Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
                 configuration.setAllowCredentials(true);
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

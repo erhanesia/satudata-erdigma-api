@@ -80,9 +80,7 @@ public final class HrisRoleMapper {
     }
 
     /**
-     * Pemetaan ke peran portal. Bukan karangan: dibaca dari tabel sepuluh
-     * identitas dummy di features/auth/model/types.ts, supaya mode dummy dan
-     * mode Cognito memberi peran yang sama untuk orang yang sama.
+     * Pemetaan ke peran portal.
      */
     public static Role role(HrisPermissionLevel level) {
         return switch (level) {

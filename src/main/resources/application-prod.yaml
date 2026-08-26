@@ -10,6 +10,11 @@ aws:
     region: ${COGNITO_REGION:ap-southeast-1}
     userPoolId: ${COGNITO_USER_POOL_ID}
 
+# Dipin di sini, tidak diwariskan dari application.yaml. Nilai ini menentukan
+# prefix kunci S3 (satudata/{stage}/); satu variabel lingkungan yang lupa
+# di-set akan membuat berkas produksi mendarat di prefix dev.
+custom:
+  stage: prod
 # Dipin di sini, tidak diwariskan dari application.yaml — bawaan di sana
 # menunjuk ke hris-dev. Kalau profil prod ikut mewarisi, satu variabel
 # lingkungan yang lupa di-set membuat produksi diam-diam disuplai data (dan
