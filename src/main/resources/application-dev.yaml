@@ -22,3 +22,8 @@ satudata:
     # sehingga wajib mengisi env var APIKEY_ENCRYPTION_SECRET atau aplikasi
     # menolak start.
     encryption-secret: ${APIKEY_ENCRYPTION_SECRET:dev-only-not-a-real-secret-satudata}
+
+# Ditimpa di sini, bukan di application.yaml: bawaan di sana menunjuk
+# hris.api.zcode.id (produksi). Lokal bicara ke hris dev.
+hris:
+  base-url: ${HRIS_BASE_URL:https://hris-dev.api.zcode.id/api/v1}

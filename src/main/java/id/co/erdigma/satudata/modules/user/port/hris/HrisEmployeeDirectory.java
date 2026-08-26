@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +22,7 @@ import id.co.erdigma.satudata.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Sumber data karyawan untuk seluruh profil selain auth-dummy.
+ * Sumber data karyawan untuk seluruh aplikasi.
  *
  * Baris di tabel {@code users} lokal adalah bayangan, bukan sumber kebenaran:
  * pada login pertama identitas orang itu ditanyakan ke hris-api memakai token
@@ -32,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
  * izinnya persis seperti saat orang itu membuka HRIS.
  */
 @Component
-@Profile("!auth-dummy")
 @Slf4j
 public class HrisEmployeeDirectory implements EmployeeDirectory {
 
