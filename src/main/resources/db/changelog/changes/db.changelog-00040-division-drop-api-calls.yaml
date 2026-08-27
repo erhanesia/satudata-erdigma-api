@@ -1,0 +1,57 @@
+# Kolom division.api_calls dicabut.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Angkanya tidak pernah bisa bergerak. Penghitungnya baru menyala kalau ada
+# jalur autentikasi mesin, dan jalur itu ikut hilang bersama fitur API key di
+# changeset 39. Yang tersisa cuma bilangan beku.
+#
+# Bilangan itu pun bukan hasil pengukuran apa pun. Nilainya masuk lewat
+# changeset 8, disalin dari larik `AGENCIES` di berkas desain —
+# `{acronym:'DNA', apiCalls:48200000, downloads:1240000}` dan seterusnya. Angka
+# karangan desainer yang membeku jadi data, persis seperti yang tercatat pada
+# temuan #9 di SKEMA-DATABASE.md.
+#
+# Yang membuatnya lebih dari sekadar kolom menganggur: kolom ini menentukan
+# URUTAN halaman. `DivisionRepository` hanya punya satu cara mengambil divisi,
+# yaitu `findAllByDeletedAtIsNullOrderByApiCallsDesc()`, sehingga peringkat
+# "Divisi teratas" di beranda DAN urutan seluruh halaman Divisi ditentukan
+# angka yang tidak pernah berubah dan tidak pernah benar.
+#
+# ---------------------------------------------------------------------------
+# Yang TIDAK ikut berubah di sini
+#
+# `division.downloads` sengaja dibiarkan. Asal-usulnya memang sama — sama-sama
+# dari larik desain, dan sama-sama tidak pernah ditulis aplikasi — tetapi
+# berbeda dalam satu hal yang menentukan: unduhan punya sumber aslinya sendiri
+# di tabel `download_log`, sehingga kolom ini bisa diganti hitungan sungguhan
+# tanpa kehilangan apa pun. Penggantian itu digarap terpisah agar changeset ini
+# tetap membaca sebagai satu keputusan tunggal.
+#
+# `dataset.api_calls` juga dibiarkan. Kolom itu milik tabel lain dan tidak
+# tampil di antarmuka mana pun; pencabutannya menyusul bersama pembersihan
+# `StatsResponse.totalApiCalls`.
+databaseChangeLog:
+  - changeSet:
+      id: "40"
+      author: author
+      changes:
+        - dropColumn:
+            tableName: division
+            columnName: api_calls
+
+      # Kolomnya bisa dibangun ulang, isinya tidak — dan itu justru yang
+      # diinginkan. Mengembalikan angka desain akan mengembalikan masalahnya.
+      # Kalau rollback ini pernah dijalankan, kedelapan barisnya berisi 0, dan
+      # urutan halaman menjadi acak alih-alih diam-diam salah.
+      rollback:
+        - addColumn:
+            tableName: division
+            columns:
+              - column:
+                  name: api_calls
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

@@ -23,9 +23,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
         Istilah teknisnya di CKAN adalah *agency* atau *organization*, merujuk instansi penerbit
         data. Di portal internal ini penerbitnya divisi, jadi itu nama yang dipakai.
 
-        Perhatikan bahwa divisi di sini **bukan** departemen di sistem HRIS. Keduanya sistem
-        terpisah; jembatannya kolom `hrisDepartementId`, yang saat ini masih kosong karena
-        pemetaannya menunggu daftar departemen dari tim HRIS.
+        Sejak changeset 42 isinya adalah **team** di sistem HRIS, bukan daftar karangan.
+        Jembatannya kolom `hrisTeamId`, dan dari situ pula divisi seorang pengguna
+        ditentukan saat login.
+
+        Perhatikan bahwa yang dipetakan adalah `team`, **bukan** `departement`. Di HRIS
+        `departement` berarti badan usaha — Gemilang Multazam, Erha Idea Cipta Karsa, dan
+        empat lainnya — sedangkan unit kerja yang di portal ini disebut divisi adalah
+        `team`. Keduanya bukan susunan bertingkat.
         """)
 public class DivisionController {
     @Autowired
@@ -33,14 +38,24 @@ public class DivisionController {
 
     @GetMapping()
     @Operation(summary = "Daftar seluruh divisi", description = """
-            Delapan divisi beserta kode, nama, warna avatar, dan penghitung pemakaian
-            (`apiCalls`, `downloads`).
+            Seluruh divisi beserta kode, nama, warna avatar, dan jumlah `downloads`.
+            Isinya 32 team Erdigma dari hris-api.
+
+            Urutannya menurun berdasarkan `downloads`. Sebelum changeset 40 urutannya
+            memakai `apiCalls`; kolom itu dicabut karena penghitungnya ikut hilang
+            bersama fitur API key, sehingga peringkat halaman ditentukan angka yang
+            tidak pernah bergerak.
 
             **Nilai `code` dari sini yang diisikan ke parameter `divisions`** pada
-            `GET /api/v1/datasets` untuk menyaring dataset per divisi penerbit:
-            `DNA`, `IT`, `PROD`, `SALES`, `FIN`, `OPS`, `HR`, `MKT`.
+            `GET /api/v1/datasets` untuk menyaring dataset per divisi penerbit —
+            misalnya `DIT` untuk Data & IT, `FAT` untuk Finance Accounting & Tax,
+            atau `SCEW` untuk Social Commerce Eyebost & Waji.
 
-            Mengisi parameter itu dengan nama panjang seperti `Divisi Penjualan` tidak akan
+            Kodenya milik portal ini sendiri, disusun sebagai singkatan nama karena HRIS
+            hanya menyimpan id dan nama. Ambil daftar terkininya dari endpoint ini,
+            jangan ditulis tetap di sisi pemanggil.
+
+            Mengisi parameter itu dengan nama panjang seperti `Data & IT` tidak akan
             menyaring apa pun — yang dipakai kodenya.
             """)
     @ApiResponse(responseCode = "200", description = "Daftar divisi berhasil diambil", useReturnTypeSchema = true)

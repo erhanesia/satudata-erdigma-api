@@ -103,7 +103,7 @@ class HrisEmployeeDirectoryTest {
                             "name": "Budi Santoso",
                             "jobLevel": "Staff",
                             "position": {"name": "Data Analyst"},
-                            "departement": {"id": "%s"}
+                            "team": {"id": "%s"}
                           }
                         }
                         """.formatted(UUID.randomUUID()), MediaType.APPLICATION_JSON));
@@ -185,6 +185,99 @@ class HrisEmployeeDirectoryTest {
                 .issuedAt(sekarang)
                 .expiresAt(sekarang.plusSeconds(3600))
                 .build();
+    }
+
+    /**
+     * Inilah yang rusak sebelum changeset 41-42, dan rusaknya diam-diam.
+     *
+     * Divisi dicocokkan lewat `division.hris_team_id`. Dulu kolomnya bernama
+     * `hris_departement_id` dan KOSONG untuk kedelapan divisi desain, jadi
+     * pencarian tidak pernah ketemu dan setiap pengguna Cognito berdivisi null.
+     * Akibatnya mereka tidak bisa menerbitkan dataset sama sekali —
+     * DatasetUploadService menolak karena tidak ada yang bisa dicatat sebagai
+     * penerbit.
+     *
+     * Tidak ada galat yang muncul waktu itu: `ifPresent` yang tidak pernah
+     * berjalan terlihat persis sama dengan yang berhasil.
+     */
+    @Test
+    @DisplayName("team dari HRIS dipetakan ke divisi lewat hris_team_id")
+    void teamHrisJadiDivisi() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+
+        // Id team "Data & IT" milik hris-api, sama dengan yang diseed
+        // changeset 42. Sengaja ditulis apa adanya: kalau seed-nya berubah,
+        // tes inilah yang harus ikut dibaca ulang.
+        String teamDataDanIt = "b59dd564-ec63-48f3-9195-89b05a1b0284";
+
+        mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "email": "sinta.dev@erdigma.co.id",
+                          "role": "STAFF",
+                          "employee": {
+                            "name": "Sinta Dev",
+                            "jobLevel": "Staff",
+                            "position": {"name": "Data Analyst"},
+                            "team": {"id": "%s"}
+                          }
+                        }
+                        """.formatted(teamDataDanIt), MediaType.APPLICATION_JSON));
+
+        converter.convert(jwtFabrikasi(cognitoId));
+
+        Optional<User> hasil = userRepository.findByCognitoId(cognitoId);
+        assertThat(hasil).isPresent();
+        assertThat(hasil.get().getDivision())
+                .as("divisi harus terisi, bukan null seperti sebelum changeset 41")
+                .isNotNull();
+
+        // Sengaja membandingkan id, bukan getCode(). Relasi divisi dimuat malas,
+        // dan di luar transaksi Hibernate proxy-nya tidak bisa diisi lagi —
+        // getCode() akan melempar LazyInitializationException. Id adalah
+        // satu-satunya ruas yang tersedia tanpa membuka sesi baru.
+        assertThat(hasil.get().getDivision().getId())
+                .as("baris divisi Data & IT yang diseed changeset 42")
+                .hasToString("b0000000-0000-4000-8000-000000000005");
+
+        mockServerHolder.server.verify();
+    }
+
+    /**
+     * Team yang belum ada di tabel `division` tidak boleh membuat provisioning
+     * gagal — orangnya tetap masuk, hanya tanpa divisi. Ini yang terjadi kalau
+     * Erdigma menambah team baru di HRIS sebelum seed-nya diperbarui.
+     */
+    @Test
+    @DisplayName("team yang tidak dikenal membuat divisi null, bukan galat")
+    void teamTakDikenalTidakMenggagalkan() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+
+        mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "email": "team.baru@erdigma.co.id",
+                          "role": "STAFF",
+                          "employee": {
+                            "name": "Team Baru",
+                            "jobLevel": "Staff",
+                            "position": {"name": "Staff"},
+                            "team": {"id": "%s"}
+                          }
+                        }
+                        """.formatted(UUID.randomUUID()), MediaType.APPLICATION_JSON));
+
+        converter.convert(jwtFabrikasi(cognitoId));
+
+        Optional<User> hasil = userRepository.findByCognitoId(cognitoId);
+        assertThat(hasil).isPresent();
+        assertThat(hasil.get().getDivision()).isNull();
+
+        mockServerHolder.server.verify();
     }
 
     static class MockServerHolder {

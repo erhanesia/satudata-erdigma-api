@@ -14,7 +14,6 @@ public class DivisionResponse {
     private String code;
     private String name;
     private String logoBg;
-    private long apiCalls;
     private long downloads;
 
     private LocalDateTime createdAt;

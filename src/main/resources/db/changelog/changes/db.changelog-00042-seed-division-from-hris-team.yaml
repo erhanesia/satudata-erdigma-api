@@ -1,0 +1,403 @@
+# Delapan divisi karangan diganti 32 team Erdigma yang sebenarnya.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Isi tabel ini sejak changeset 8 disalin dari larik `AGENCIES` di berkas
+# desain: DNA, IT, PROD, SALES, FIN, OPS, HR, MKT. Tidak satu pun mencerminkan
+# struktur Erdigma. Nama, kode, warna, dan angka penghitungnya sama-sama
+# karangan desainer yang membeku jadi data.
+#
+# Daftar penggantinya diambil dari GET /api/v1/team milik hris-api, sehingga
+# `hris_team_id` bisa langsung terisi dan pengguna Cognito yang login otomatis
+# mendapat divisinya. Sebelum ini kolom itu kosong untuk kedelapan barisnya,
+# yang membuat SETIAP pengguna Cognito berdivisi null dan karena itu tidak bisa
+# menerbitkan dataset sama sekali.
+#
+# ---------------------------------------------------------------------------
+# Kode dan warna
+#
+# HRIS hanya menyimpan id dan nama; kode serta warna milik portal ini sendiri.
+#
+# Kode disusun sebagai singkatan nama, minimal dua huruf, dan dipakai di tiga
+# tempat: teks avatar divisi, nilai filter `?divisions=` di URL, dan label
+# ringkas di tabel admin. Tiga di antaranya sengaja tidak mengikuti singkatan
+# apa adanya - `ERSP` dan `MKTP` supaya tidak jadi satu huruf, sedangkan
+# `GMLT` dan `GMGR` memisahkan Gemilang Multazam dari General Manager yang
+# sama-sama menghasilkan `GM`.
+#
+# Warna dipilih dari id HRIS-nya, bukan dari urutan daftar: urutan bergeser
+# begitu ada team baru, sedangkan id tidak. Paletnya delapan warna yang sama
+# dengan berkas desain, jadi warnanya berulang antar team - itu diterima,
+# karena kode di dalam avatar yang membedakan, bukan warnanya.
+#
+# ---------------------------------------------------------------------------
+# Data lama
+#
+# Ketiga tabel yang menunjuk `division` dipindahkan lebih dulu, baru kedelapan
+# baris lama dihapus. Di produksi pemindahan ini tidak menyentuh apa pun -
+# seluruh dataset dan pengguna contoh berpagar `contextFilter: dev`, jadi yang
+# tersisa hanya delapan baris kosong yang dihapus. Di laptop, 26 dataset,
+# 26 pengguna, dan 1 koleksi ikut berpindah.
+#
+# Pemetaannya perkiraan dan tidak bisa tepat: DNA dan IT sama-sama jatuh ke
+# "Data & IT", sementara SALES dan MKT di HRIS tersebar di belasan team
+# berbasis merek. Ini diterima karena yang dipindahkan memang data contoh -
+# dataset fiktif yang tidak akan ikut ke produksi.
+databaseChangeLog:
+  - changeSet:
+      id: "42"
+      author: author
+      changes:
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000001" }
+              - column: { name: code, value: "BV" }
+              - column: { name: name, value: "Bruv & Vitasma" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "53074d3f-f5c5-4644-a2b1-9012635a4e7b" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000002" }
+              - column: { name: code, value: "CL" }
+              - column: { name: name, value: "C Level" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "cde18a43-800b-473b-ab28-ee393c67f45b" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000003" }
+              - column: { name: code, value: "CD" }
+              - column: { name: name, value: "Channel Development" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "aa5b233f-18f4-4717-b147-a0f8847eaeb2" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000004" }
+              - column: { name: code, value: "CS" }
+              - column: { name: name, value: "Corporate Secretary" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "fba9875a-affd-471a-b5e5-782a5e15ec30" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000005" }
+              - column: { name: code, value: "DIT" }
+              - column: { name: name, value: "Data & IT" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "b59dd564-ec63-48f3-9195-89b05a1b0284" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000006" }
+              - column: { name: code, value: "DS" }
+              - column: { name: name, value: "Digital Strategic" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: hris_team_id, value: "3089d748-7659-448e-bd60-a5d7ffe33eda" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000007" }
+              - column: { name: code, value: "EC" }
+              - column: { name: name, value: "E-Commerce" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: hris_team_id, value: "f23a47c5-6d29-5c3d-a042-5616e906ff8b" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000008" }
+              - column: { name: code, value: "EICK" }
+              - column: { name: name, value: "Erha Idea Cipta Karsa" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: hris_team_id, value: "0b2a6da6-1c8f-4ed1-acac-90e9ee6b6a0a" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000009" }
+              - column: { name: code, value: "ECS" }
+              - column: { name: name, value: "Erhanesia Creative Space" }
+              - column: { name: logo_bg, value: "#BE123C" }
+              - column: { name: hris_team_id, value: "1556dd7c-1809-4419-8775-7d361eb39a9c" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000010" }
+              - column: { name: code, value: "EKI" }
+              - column: { name: name, value: "Erhaniaga Kulakin Indonesia" }
+              - column: { name: logo_bg, value: "#B45309" }
+              - column: { name: hris_team_id, value: "b8c5f7b5-24dd-4ab3-8569-7e0a6c5ad09e" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000011" }
+              - column: { name: code, value: "ERSP" }
+              - column: { name: name, value: "Erspace" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "ebe6b727-b83b-595a-bc10-8dbb61cdc91b" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000012" }
+              - column: { name: code, value: "EP" }
+              - column: { name: name, value: "Eyebost & Pro" }
+              - column: { name: logo_bg, value: "#7C3AED" }
+              - column: { name: hris_team_id, value: "a899c89a-dab0-432a-99eb-84b6be13c3ac" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000013" }
+              - column: { name: code, value: "FAT" }
+              - column: { name: name, value: "Finance Accounting & Tax" }
+              - column: { name: logo_bg, value: "#BE123C" }
+              - column: { name: hris_team_id, value: "ed9d800c-9c96-4b4f-ad69-8c0ed05b1a34" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000014" }
+              - column: { name: code, value: "GMLT" }
+              - column: { name: name, value: "Gemilang Multazam" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: hris_team_id, value: "376c15f6-4caf-4799-88c9-c9c0c553a2d0" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000015" }
+              - column: { name: code, value: "GMGR" }
+              - column: { name: name, value: "General Manager" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "99cc97b9-4906-44ba-aadc-056c089a5029" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000016" }
+              - column: { name: code, value: "HRGA" }
+              - column: { name: name, value: "HRGA Team" }
+              - column: { name: logo_bg, value: "#7C3AED" }
+              - column: { name: hris_team_id, value: "eef40c17-dc64-463d-8fce-385553f20c62" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000017" }
+              - column: { name: code, value: "MT" }
+              - column: { name: name, value: "Management Trainee" }
+              - column: { name: logo_bg, value: "#0EA5A0" }
+              - column: { name: hris_team_id, value: "a45688df-fd7c-4c37-a53e-763552db44ce" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000018" }
+              - column: { name: code, value: "MKTP" }
+              - column: { name: name, value: "Marketplace" }
+              - column: { name: logo_bg, value: "#BE123C" }
+              - column: { name: hris_team_id, value: "446ef1e5-627e-4f1b-83a1-365c6a469017" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000019" }
+              - column: { name: code, value: "OC" }
+              - column: { name: name, value: "Offline Channel" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "3749f595-e3e6-5f70-94ec-2fccef5ac7bd" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000020" }
+              - column: { name: code, value: "PEB" }
+              - column: { name: name, value: "PGM Ethos Brand" }
+              - column: { name: logo_bg, value: "#B45309" }
+              - column: { name: hris_team_id, value: "ff9fa9bb-4960-5895-b75b-b45e92d889a7" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000021" }
+              - column: { name: code, value: "PPE" }
+              - column: { name: name, value: "PGM Product EDM" }
+              - column: { name: logo_bg, value: "#0EA5A0" }
+              - column: { name: hris_team_id, value: "7ecc118a-37d6-435e-b9b3-6e55f8aca3ca" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000022" }
+              - column: { name: code, value: "RI" }
+              - column: { name: name, value: "Research & Innovation" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: hris_team_id, value: "25991b5c-005a-4be4-bf13-1bebaac65dc6" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000023" }
+              - column: { name: code, value: "RT" }
+              - column: { name: name, value: "Riset Team" }
+              - column: { name: logo_bg, value: "#1B54C4" }
+              - column: { name: hris_team_id, value: "8f9214c5-6be6-5911-9ae6-fd934eef80c5" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000024" }
+              - column: { name: code, value: "SCEW" }
+              - column: { name: name, value: "Social Commerce Eyebost & Waji" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "5cb384a4-8588-5ac9-8b94-ef56f0fb5a33" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000025" }
+              - column: { name: code, value: "SCVV" }
+              - column: { name: name, value: "Social Commerce Vitameal & Vitasma" }
+              - column: { name: logo_bg, value: "#A21CAF" }
+              - column: { name: hris_team_id, value: "e92d67e4-1357-5289-b1ec-afcae2660d83" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000026" }
+              - column: { name: code, value: "SCYM" }
+              - column: { name: name, value: "Social Commerce You and Milk" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "1db83768-10b9-596a-9521-fd13159903c4" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000027" }
+              - column: { name: code, value: "TCEW" }
+              - column: { name: name, value: "TikTok Commerce Eyebost & Waji" }
+              - column: { name: logo_bg, value: "#0F766E" }
+              - column: { name: hris_team_id, value: "f85c7e83-524e-56a8-a1e4-d649dc4feef2" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000028" }
+              - column: { name: code, value: "TCVV" }
+              - column: { name: name, value: "TikTok Commerce Vitameal & Vitasma" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: hris_team_id, value: "45d422f6-b546-53f7-af55-c2025db108e2" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000029" }
+              - column: { name: code, value: "TCYM" }
+              - column: { name: name, value: "TikTok Commerce You and Milk" }
+              - column: { name: logo_bg, value: "#BE123C" }
+              - column: { name: hris_team_id, value: "50bdf033-f48e-502a-a7fc-4fb7faf842e5" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000030" }
+              - column: { name: code, value: "VLS" }
+              - column: { name: name, value: "Vitameal & Less Sugar" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: hris_team_id, value: "72c184b8-c850-48e7-8b57-62b9b00095c3" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000031" }
+              - column: { name: code, value: "WE" }
+              - column: { name: name, value: "Waji & Enrivo" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: hris_team_id, value: "09375811-c441-472c-ad5a-36f02b78c819" }
+              - column: { name: downloads, valueNumeric: 0 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000032" }
+              - column: { name: code, value: "YMV" }
+              - column: { name: name, value: "You and Milk & Vitummy" }
+              - column: { name: logo_bg, value: "#047857" }
+              - column: { name: hris_team_id, value: "cb5cf14e-799a-48fc-a84b-c5722bf3f8e6" }
+              - column: { name: downloads, valueNumeric: 0 }
+        # Pindahkan dulu, hapus belakangan. Urutan terbalik akan ditolak
+        # foreign key, dan itu memang penjagaan yang diinginkan.
+        - sql:
+            sql: |
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'DNA');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'IT');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'FAT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'FIN');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'HRGA')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'HR');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'MKTP')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'SALES');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'DS')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'MKT');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'CD')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'OPS');
+              UPDATE users SET division_id = (SELECT id FROM division WHERE code = 'RI')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'PROD');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'DNA');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'IT');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'FAT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'FIN');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'HRGA')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'HR');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'MKTP')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'SALES');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'DS')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'MKT');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'CD')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'OPS');
+              UPDATE dataset SET division_id = (SELECT id FROM division WHERE code = 'RI')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'PROD');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'DNA');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'DIT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'IT');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'FAT')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'FIN');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'HRGA')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'HR');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'MKTP')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'SALES');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'DS')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'MKT');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'CD')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'OPS');
+              UPDATE collection SET division_id = (SELECT id FROM division WHERE code = 'RI')
+               WHERE division_id IN (SELECT id FROM division WHERE code = 'PROD');
+
+              DELETE FROM division
+               WHERE code IN ('DNA','IT','PROD','SALES','FIN','OPS','HR','MKT');
+
+      # Delapan baris desain sengaja TIDAK dibangkitkan ulang. Mengembalikannya
+      # berarti mengembalikan masalahnya. Yang perlu dipulihkan rollback ini
+      # hanya keadaan sebelum changeset berjalan, dan changeset 8 sudah
+      # memegang definisi aslinya.
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM division WHERE hris_team_id IS NOT NULL;

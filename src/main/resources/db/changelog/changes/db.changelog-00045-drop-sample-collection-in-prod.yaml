@@ -1,0 +1,42 @@
+# Koleksi contoh dibersihkan dari produksi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Changeset 8 menyeed data acuan yang memang dibutuhkan produksi — empat format
+# berkas, delapan topik, dan divisi. Karena itu ia SENGAJA tidak dipagari; kalau
+# ikut terpagar, produksi berjalan tanpa daftar format dan setiap unggahan CSV
+# ditolak.
+#
+# Tetapi changeset yang sama juga menyisipkan satu koleksi contoh, "Kinerja
+# Komersial", yang disalin dari larik `COLLECTIONS` di berkas desain. Koleksi
+# bukan data acuan — ia isi buatan pengguna, dan yang satu ini kosong, tidak
+# memuat dataset apa pun.
+#
+# Ini pola yang sama dengan changeset 18 dan 32: satu changeset mencampur dua
+# jenis data, sehingga pagarnya tidak bisa dipasang tanpa ikut membuang yang
+# lain. Bedanya, di sini yang perlu dibuang justru bagian kecilnya, jadi lebih
+# murah dihapus belakangan daripada memecah changeset yang sudah jalan di
+# semua mesin.
+#
+# ---------------------------------------------------------------------------
+# Kenapa berpagar prod, bukan dev
+#
+# Terbalik dari changeset lain di changelog ini, dan itu disengaja. Di laptop
+# koleksi tersebut berguna — tanpa satu pun koleksi, halaman Koleksi tidak bisa
+# dicoba sama sekali. Yang perlu bersih hanya produksi.
+databaseChangeLog:
+  - changeSet:
+      id: "45"
+      author: author
+      contextFilter: prod
+      changes:
+        - delete:
+            tableName: collection
+            where: "id = 'd0000000-0000-4000-8000-000000000001'"
+
+      # Tidak bisa dibangun ulang: definisinya milik changeset 8, dan
+      # menyalinnya ke sini berarti dua tempat yang harus dijaga tetap sama.
+      # Rollback yang jujur untuk penghapusan data contoh adalah tidak ada.
+      rollback:
+        - empty

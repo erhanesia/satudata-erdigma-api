@@ -1,0 +1,51 @@
+# Kolom jembatan ke HRIS menunjuk sumbu yang salah sejak awal.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# `hris_departement_id` dibuat dengan anggapan "divisi" di portal ini sepadan
+# dengan `departement` di HRIS. Pemanggilan GET /api/v1/departement dan
+# GET /api/v1/team ke hris-api dev menunjukkan anggapan itu keliru:
+#
+#   6 departemen ternyata BADAN USAHA, bukan fungsi kerja —
+#     Gemilang Multazam, Erha Idea Cipta Karsa, Erhaniaga Kulakin Indonesia,
+#     Erhanesia Creative Space, Erhanesia Digital Creative,
+#     Erhanesia Digima Mukitama.
+#
+#   32 team adalah UNIT KERJA sesungguhnya —
+#     Data & IT, HRGA Team, Finance Accounting & Tax, Corporate Secretary,
+#     Marketplace, Research & Innovation, serta belasan team berbasis merek
+#     seperti Social Commerce Eyebost & Waji.
+#
+# Yang selama ini disebut "divisi" di portal ini adalah unit kerja, jadi
+# padanannya team. Membiarkan nama kolomnya menyebut departemen akan
+# menyesatkan pembaca berikutnya justru karena HRIS benar-benar punya entitas
+# bernama `departement` yang artinya lain sama sekali.
+#
+# Perlu dicatat, keduanya bukan susunan bertingkat. Changeset 00023 di hris-api
+# MENGHAPUS `departement_id` dari tabel `team`, jadi team bukan bagian dari
+# departemen — keduanya sumbu terpisah. Peralihan ini bukan turun satu tingkat.
+#
+# ---------------------------------------------------------------------------
+# Isinya
+#
+# Kolomnya kosong untuk kedelapan barisnya, jadi tidak ada data yang berpindah
+# maupun hilang. Yang berubah hanya namanya. Pengisiannya menyusul di
+# changeset 42, bersama penggantian isi tabelnya.
+databaseChangeLog:
+  - changeSet:
+      id: "41"
+      author: author
+      changes:
+        - renameColumn:
+            tableName: division
+            oldColumnName: hris_departement_id
+            newColumnName: hris_team_id
+            columnDataType: UUID
+
+      rollback:
+        - renameColumn:
+            tableName: division
+            oldColumnName: hris_team_id
+            newColumnName: hris_departement_id
+            columnDataType: UUID

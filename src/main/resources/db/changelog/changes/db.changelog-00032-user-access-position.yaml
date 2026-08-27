@@ -38,6 +38,13 @@ databaseChangeLog:
   - changeSet:
       id: "32"
       author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      #
+      # Changeset ini mencampur dua hal - ia menambah kolom access_position DAN
+      # menyisipkan sembilan pengguna contoh. Tanpa pagar, kesembilannya ikut ke
+      # produksi. Kolomnya sendiri disediakan changeset 44 yang tidak berpagar,
+      # supaya produksi tetap mendapatkannya.
+      contextFilter: dev
       changes:
         - addColumn:
             tableName: users
