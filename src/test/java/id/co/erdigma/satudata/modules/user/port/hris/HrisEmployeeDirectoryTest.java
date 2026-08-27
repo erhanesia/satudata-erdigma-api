@@ -202,14 +202,14 @@ class HrisEmployeeDirectoryTest {
      */
     @Test
     @DisplayName("team dari HRIS dipetakan ke divisi lewat hris_team_id")
-    void teamHrisJadiDivisi() {
+    void hrisTeamBecomesDivision() {
         String cognitoId = "it-test-" + UUID.randomUUID();
         cognitoIdBuatanTest.add(cognitoId);
 
         // Id team "Data & IT" milik hris-api, sama dengan yang diseed
         // changeset 42. Sengaja ditulis apa adanya: kalau seed-nya berubah,
         // tes inilah yang harus ikut dibaca ulang.
-        String teamDataDanIt = "b59dd564-ec63-48f3-9195-89b05a1b0284";
+        String dataAndItTeamId = "b59dd564-ec63-48f3-9195-89b05a1b0284";
 
         mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
                 .andExpect(method(HttpMethod.GET))
@@ -224,7 +224,7 @@ class HrisEmployeeDirectoryTest {
                             "team": {"id": "%s"}
                           }
                         }
-                        """.formatted(teamDataDanIt), MediaType.APPLICATION_JSON));
+                        """.formatted(dataAndItTeamId), MediaType.APPLICATION_JSON));
 
         converter.convert(jwtFabrikasi(cognitoId));
 
@@ -252,7 +252,7 @@ class HrisEmployeeDirectoryTest {
      */
     @Test
     @DisplayName("team yang tidak dikenal membuat divisi null, bukan galat")
-    void teamTakDikenalTidakMenggagalkan() {
+    void unknownTeamLeavesDivisionNull() {
         String cognitoId = "it-test-" + UUID.randomUUID();
         cognitoIdBuatanTest.add(cognitoId);
 

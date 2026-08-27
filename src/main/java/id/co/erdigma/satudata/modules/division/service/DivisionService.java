@@ -33,9 +33,9 @@ public class DivisionService {
     @Transactional(readOnly = true)
     public List<DivisionResponse> getAll() {
         return divisionRepository.findAllWithDownloads().stream()
-                .map(baris -> {
-                    DivisionResponse response = divisionMapper.toResponse((Division) baris[0]);
-                    response.setDownloads(((Number) baris[1]).longValue());
+                .map(row -> {
+                    DivisionResponse response = divisionMapper.toResponse((Division) row[0]);
+                    response.setDownloads(((Number) row[1]).longValue());
                     return response;
                 })
                 .toList();
