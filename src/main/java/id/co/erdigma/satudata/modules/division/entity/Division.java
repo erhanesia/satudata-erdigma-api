@@ -42,7 +42,6 @@ public class Division {
     private UUID id;
     private String code;
     private String name;
-    private String logoBg;
     private UUID hrisTeamId;
 
     @CreatedDate

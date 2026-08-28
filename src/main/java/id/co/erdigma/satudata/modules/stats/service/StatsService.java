@@ -60,7 +60,7 @@ public class StatsService {
         response.setTotalContributor(datasetRepository.countContributor());
         response.setTotalActiveUser(userRepository.countByDeletedAtIsNull());
         response.setTotalDownloads30d(downloadLogRepository
-                .countByDownloadedAtGreaterThanEqual(
+                .countDownloadsSince(
                         LocalDate.now().minusDays(DEFAULT_DAYS - 1L).atStartOfDay()));
         return response;
     }

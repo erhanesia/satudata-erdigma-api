@@ -27,8 +27,31 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
     Page<DownloadLog> findAllByDownloadedAtBetweenOrderByDownloadedAtDesc(
             LocalDateTime dari, LocalDateTime sampai, Pageable pageable);
 
-    /** Isi kartu "Download 30 hari" di dasbor admin. */
-    long countByDownloadedAtGreaterThanEqual(LocalDateTime sejak);
+    /**
+     * Isi kartu "Download 30 hari" di dasbor admin.
+     *
+     * Baris {@code PREVIEW} SENGAJA tidak ikut. Tabel ini mencatat dua peristiwa
+     * berbeda: unduhan yang melewati modal persetujuan, dan pratinjau yang tidak.
+     * Keduanya sama-sama mengeluarkan byte dari server sehingga sama-sama perlu
+     * tercatat, tetapi hanya yang pertama berarti "diunduh".
+     *
+     * Alasannya sama persis dengan yang tertulis di
+     * {@code DivisionRepository.findAllWithDownloads()}. Tanpa penyaringan ini,
+     * dua tempat di aplikasi yang sama menjawab pertanyaan yang sama dengan angka
+     * yang berbeda — dan dasbor admin akan menyebut bilangan yang lebih besar
+     * daripada yang dilaporkan halaman divisi.
+     *
+     * JANGAN dikembalikan ke nama turunan Spring Data. Nama seperti
+     * {@code countByDownloadedAtGreaterThanEqual} menyatakan bahwa query-nya
+     * hanya membandingkan waktu, dan itu berhenti benar begitu ada penyaringan
+     * jenis akses. Nama yang berbohong lebih berbahaya daripada nama yang panjang.
+     */
+    @Query("""
+            SELECT COUNT(l) FROM DownloadLog l
+             WHERE l.downloadedAt >= :sejak
+               AND l.accessType = 'DOWNLOAD'
+            """)
+    long countDownloadsSince(@Param("sejak") LocalDateTime sejak);
 
     /**
      * Jumlah unduhan per hari untuk grafik dasbor.
@@ -41,6 +64,14 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
      *
      * Dengan deret tanggal sebagai sisi kiri LEFT JOIN, hari tanpa unduhan
      * tetap muncul bernilai 0.
+     *
+     * Baris {@code PREVIEW} tidak ikut dihitung, alasannya sama dengan
+     * {@link #countDownloadsSince(LocalDateTime)}. Penyaringnya ditaruh di dalam
+     * ON, BUKAN di WHERE — pada LEFT JOIN keduanya berbeda. Di WHERE ia menyaring
+     * setelah join selesai, sehingga hari yang hanya berisi pratinjau ikut
+     * terbuang dan lubangnya kembali muncul di grafik; justru itu yang dicegah
+     * seluruh {@code generate_series} di atas. Di dalam ON, harinya tetap ada
+     * bernilai 0, dan itu memang keadaan sebenarnya.
      *
      * Dua CAST di bawah bukan hiasan. {@code generate_series} atas dua nilai
      * DATE menghasilkan {@code timestamptz}, yang sampai ke Java sebagai
@@ -55,6 +86,7 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
             LEFT JOIN download_log l
               ON l.downloaded_at >= hari.tanggal
              AND l.downloaded_at < hari.tanggal + INTERVAL '1 day'
+             AND l.access_type = 'DOWNLOAD'
             GROUP BY hari.tanggal
             ORDER BY hari.tanggal
             """, nativeQuery = true)
