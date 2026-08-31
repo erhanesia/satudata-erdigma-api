@@ -1,0 +1,192 @@
+# Melengkapi dataset contoh dengan tiga hal yang diminta panel admin: pemilik,
+# berkas, dan tag posisi.
+#
+# TENTANG BERKASNYA — baca sebelum heran. Baris dataset_resource di sini
+# memakai storage_provider 'SEED' dan menunjuk ke storage_key yang memang TIDAK
+# ADA isinya di disk. Yang dibuat adalah metadata berkas: nama, jenis, dan
+# ukuran, supaya kolom "File" di panel admin punya sesuatu yang nyata untuk
+# ditampilkan. Menyertakan isi aslinya berarti menaruh puluhan megabyte data
+# karangan ke dalam repo.
+#
+# Konsekuensinya sudah ditangani: DownloadService menolak resource 'SEED' lebih
+# dulu dengan pesan yang menjelaskan keadaannya, jadi tidak ada yang menekan
+# Unduh lalu mendapat galat yang tidak bisa dimengerti.
+#
+# "trafik-aplikasi" sengaja TIDAK diberi berkas. Dataset itu ditandai realtime
+# dan disclaimer-nya sendiri berbunyi "unduhan snapshot tidak tersedia" —
+# memberinya berkas berarti membuat datanya membantah keterangannya sendiri.
+databaseChangeLog:
+  - changeSet:
+      id: "28"
+      author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
+      changes:
+
+        # --- 1. Pemilik ------------------------------------------------------
+        # Dipasangkan sesuai divisi masing-masing dataset. "utilisasi-sdm"
+        # jatuh ke admin portal karena divisi OPS belum punya penerbit sendiri
+        # di data dummy; admin memang berwenang lintas divisi.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset d
+              SET uploaded_by = u.id
+              FROM (VALUES
+                ('penjualan-bulanan',       'dummy-fannisa'),
+                ('uptime-layanan',          'dummy-rizky'),
+                ('trafik-aplikasi',         'dummy-dimas-aryo'),
+                ('pelatihan-karyawan',      'dummy-amalia'),
+                ('utilisasi-sdm',           'dummy-admin'),
+                ('biaya-operasional',       'dummy-andri'),
+                ('cakupan-cabang',          'dummy-bagas-nugroho'),
+                ('engagement-kampanye',     'dummy-salam'),
+                ('penjualan-furnitur-2025', 'dummy-fannisa')
+              ) AS v(slug, cognito_id)
+              JOIN users u ON u.cognito_id = v.cognito_id
+              WHERE d.slug = v.slug AND d.uploaded_by IS NULL;
+
+        # --- 2. Tanggal unggah ----------------------------------------------
+        # Kolom "Diunggah" di desain menampilkan tanggal terbitnya, bukan hari
+        # migrasi dijalankan. Tanpa ini seluruh baris berbunyi "hari ini".
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset
+              SET created_at = last_updated_at
+              WHERE last_updated_at IS NOT NULL
+                AND last_updated_at < created_at;
+
+        # --- 3. Berkas -------------------------------------------------------
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO dataset_resource
+                (id, dataset_id, format_id, file_name, content_type,
+                 storage_provider, storage_key, size_bytes, created_at, updated_at)
+              SELECT v.id::uuid, d.id, f.id, v.file_name, v.content_type,
+                     'SEED', 'seed/' || d.slug || '/' || v.file_name, v.size_bytes,
+                     d.created_at, d.created_at
+              FROM (VALUES
+                ('f0000000-0000-4000-8000-000000000001', 'penjualan-bulanan', 'CSV',
+                 'kinerja-penjualan-bulanan.csv', 'text/csv', 430080),
+                ('f0000000-0000-4000-8000-000000000002', 'penjualan-bulanan', 'XLSX',
+                 'kamus-kolom-penjualan-bulanan.xlsx',
+                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 98304),
+                ('f0000000-0000-4000-8000-000000000003', 'uptime-layanan', 'CSV',
+                 'metrik-uptime-insiden.csv', 'text/csv', 12373196),
+                ('f0000000-0000-4000-8000-000000000004', 'pelatihan-karyawan', 'XLSX',
+                 'partisipasi-pelatihan-karyawan.xlsx',
+                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 1153434),
+                ('f0000000-0000-4000-8000-000000000005', 'pelatihan-karyawan', 'PDF',
+                 'panduan-partisipasi-pelatihan.pdf', 'application/pdf', 1468006),
+                ('f0000000-0000-4000-8000-000000000006', 'utilisasi-sdm', 'CSV',
+                 'utilisasi-kapasitas-tim.csv', 'text/csv', 3565158),
+                ('f0000000-0000-4000-8000-000000000007', 'biaya-operasional', 'CSV',
+                 'indeks-biaya-operasional.csv', 'text/csv', 634880),
+                ('f0000000-0000-4000-8000-000000000008', 'cakupan-cabang', 'PDF',
+                 'peta-cakupan-cabang-gudang.pdf', 'application/pdf', 29989273),
+                ('f0000000-0000-4000-8000-000000000009', 'cakupan-cabang', 'XLSX',
+                 'daftar-cabang-dan-gudang.xlsx',
+                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 13002342),
+                ('f0000000-0000-4000-8000-000000000010', 'engagement-kampanye', 'CSV',
+                 'engagement-kampanye-pemasaran.csv', 'text/csv', 491520),
+                ('f0000000-0000-4000-8000-000000000011', 'engagement-kampanye', 'DOCX',
+                 'ringkasan-kampanye-pemasaran.docx',
+                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                 268288)
+              ) AS v(id, slug, format_name, file_name, content_type, size_bytes)
+              JOIN dataset d ON d.slug = v.slug
+              JOIN format f ON f.name = v.format_name
+              WHERE NOT EXISTS (
+                SELECT 1 FROM dataset_resource r WHERE r.id = v.id::uuid
+              );
+
+        # Lencana format pada kartu dataset dibaca dari dataset_formats, bukan
+        # dari berkasnya. Tanpa langkah ini XLSX/PDF/DOCX yang baru ditambahkan
+        # punya berkas tapi tidak punya lencana — dua tampilan yang saling
+        # membantah untuk data yang sama.
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO dataset_formats (dataset_id, format_id)
+              SELECT DISTINCT r.dataset_id, r.format_id
+              FROM dataset_resource r
+              WHERE r.storage_provider = 'SEED'
+                AND NOT EXISTS (
+                  SELECT 1 FROM dataset_formats df
+                  WHERE df.dataset_id = r.dataset_id AND df.format_id = r.format_id
+                );
+
+        # --- 4. Tag posisi ---------------------------------------------------
+        # Nilainya mengikuti desain. Sekali lagi: ini baru catatan, BELUM
+        # penegakan akses. Lihat changeset 00026.
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO dataset_position_access (dataset_id, position)
+              SELECT d.id, v.position
+              FROM (VALUES
+                ('penjualan-bulanan', 'Direksi'),
+                ('penjualan-bulanan', 'General Manager'),
+                ('penjualan-bulanan', 'Manager'),
+                ('penjualan-bulanan', 'Project Manager'),
+                ('penjualan-bulanan', 'Data Analyst'),
+                ('uptime-layanan', 'Manager'),
+                ('uptime-layanan', 'Project Manager'),
+                ('uptime-layanan', 'Team Lead'),
+                ('uptime-layanan', 'Data Analyst'),
+                ('uptime-layanan', 'Staff Senior'),
+                ('trafik-aplikasi', 'Direksi'),
+                ('trafik-aplikasi', 'General Manager'),
+                ('trafik-aplikasi', 'Manager'),
+                ('pelatihan-karyawan', 'Direksi'),
+                ('pelatihan-karyawan', 'General Manager'),
+                ('pelatihan-karyawan', 'Manager'),
+                ('pelatihan-karyawan', 'Project Manager'),
+                ('pelatihan-karyawan', 'Staff Senior'),
+                ('utilisasi-sdm', 'Direksi'),
+                ('utilisasi-sdm', 'General Manager'),
+                ('utilisasi-sdm', 'Manager'),
+                ('utilisasi-sdm', 'Team Lead'),
+                ('biaya-operasional', 'Direksi'),
+                ('biaya-operasional', 'General Manager'),
+                ('biaya-operasional', 'Manager'),
+                ('cakupan-cabang', 'Manager'),
+                ('cakupan-cabang', 'Project Manager'),
+                ('cakupan-cabang', 'Data Analyst'),
+                ('engagement-kampanye', 'Manager'),
+                ('engagement-kampanye', 'Project Manager'),
+                ('engagement-kampanye', 'Team Lead'),
+                ('engagement-kampanye', 'Data Analyst'),
+                ('engagement-kampanye', 'Staff Senior'),
+                ('penjualan-furnitur-2025', 'Direksi'),
+                ('penjualan-furnitur-2025', 'General Manager'),
+                ('penjualan-furnitur-2025', 'Manager'),
+                ('penjualan-furnitur-2025', 'Project Manager'),
+                ('penjualan-furnitur-2025', 'Data Analyst')
+              ) AS v(slug, position)
+              JOIN dataset d ON d.slug = v.slug
+              ON CONFLICT DO NOTHING;
+
+      rollback:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM dataset_position_access;
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM dataset_formats df
+              USING dataset_resource r
+              WHERE df.dataset_id = r.dataset_id AND df.format_id = r.format_id
+                AND r.storage_provider = 'SEED';
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM dataset_resource WHERE storage_provider = 'SEED';
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset SET uploaded_by = NULL;

@@ -35,6 +35,9 @@ databaseChangeLog:
   - changeSet:
       id: "18"
       author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
       changes:
         - addColumn:
             tableName: users

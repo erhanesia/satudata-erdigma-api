@@ -1,0 +1,39 @@
+# Mencatat siapa yang mengunggah sebuah dataset.
+#
+# Diperlukan sejak panel admin ada: tabel datasetnya menampilkan kolom
+# "Diunggah oleh", dan sebelum ini tidak ada satu pun kolom yang menyimpannya —
+# dataset hanya tahu divisi penerbitnya, bukan orangnya. Divisi tidak cukup:
+# saat ada yang perlu ditanyakan tentang isi data, yang dicari orangnya.
+#
+# Nullable karena sembilan dataset seed dan seluruh dataset yang terlanjur
+# diunggah sebelum changeset ini tidak punya nilainya. Panel admin
+# menampilkannya sebagai "—", bukan menebak.
+#
+# ON DELETE tidak dipasang: user memakai soft delete, jadi barisnya tidak pernah
+# benar-benar hilang dan foreign key-nya tetap sah selamanya.
+databaseChangeLog:
+  - changeSet:
+      id: "24"
+      author: author
+      changes:
+        - addColumn:
+            tableName: dataset
+            columns:
+              - column:
+                  name: uploaded_by
+                  type: UUID
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: dataset
+            baseColumnNames: uploaded_by
+            constraintName: dataset_to_uploader
+            referencedTableName: users
+            referencedColumnNames: id
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: dataset
+            constraintName: dataset_to_uploader
+        - dropColumn:
+            tableName: dataset
+            columnName: uploaded_by

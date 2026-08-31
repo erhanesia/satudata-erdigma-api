@@ -32,6 +32,9 @@ databaseChangeLog:
   - changeSet:
       id: "19"
       author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
       changes:
         # dummy-admin sebelumnya tidak punya job_level. Di HRIS itu memang tidak
         # berpengaruh — role=ADMIN membuat PermissionLevelHelper berhenti lebih

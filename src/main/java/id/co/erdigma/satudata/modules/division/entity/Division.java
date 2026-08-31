@@ -20,8 +20,15 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 /**
- * Divisi kontributor data. Kolom {@code hrisDepartementId} adalah jembatan ke
- * tabel {@code departement} milik hris-api — diisi saat integrasi HRIS.
+ * Divisi kontributor data. Kolom {@code hrisTeamId} adalah jembatan ke tabel
+ * {@code team} milik hris-api, dan sejak changeset 42 seluruh isinya memang
+ * berasal dari sana.
+ *
+ * Dulu bernama {@code hrisDepartementId}. Nama itu keliru: `departement` di
+ * HRIS ternyata badan usaha — Gemilang Multazam, Erha Idea Cipta Karsa, dan
+ * seterusnya — sedangkan unit kerja yang selama ini disebut "divisi" di sini
+ * adalah `team`. Keduanya bukan susunan bertingkat; changeset 00023 di hris-api
+ * menghapus {@code departement_id} dari tabel `team`.
  */
 @Data
 @Entity
@@ -35,10 +42,7 @@ public class Division {
     private UUID id;
     private String code;
     private String name;
-    private String logoBg;
-    private UUID hrisDepartementId;
-    private long apiCalls;
-    private long downloads;
+    private UUID hrisTeamId;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

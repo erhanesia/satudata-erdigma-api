@@ -57,14 +57,14 @@ public class DatasetImportService {
      * Excel dengan pengaturan regional Indonesia memakai titik koma, sehingga
      * SELURUH baris header terbaca sebagai satu nama kolom. Kalau header itu
      * lebih panjang dari 100 karakter, database menolaknya dan penerbit hanya
-     * melihat galat 500 tanpa petunjuk. Kalau kebetulan lebih pendek, yang
+     * melihat galat 500 tanpa hint. Kalau kebetulan lebih pendek, yang
      * terjadi lebih buruk lagi: dataset terbit dengan satu kolom bernama
      * "tanggal;kota;produk;..." tanpa ada satu pun peringatan.
      */
-    private static final char[] PEMISAH_KANDIDAT = { ',', ';', '	', '|' };
+    private static final char[] DELIMITER_CANDIDATES = { ',', ';', '	', '|' };
 
     /** Nama tampilan tiap pemisah, untuk pesan galat yang bisa dimengerti. */
-    private static final Map<Character, String> NAMA_PEMISAH = Map.of(
+    private static final Map<Character, String> DELIMITER_NAMES = Map.of(
             ',', "koma", ';', "titik koma", '	', "tab", '|', "garis tegak");
 
     /**
@@ -73,7 +73,7 @@ public class DatasetImportService {
      * menjelaskan, bukan 500 dari Postgres yang tidak berarti apa-apa bagi
      * penerbit.
      */
-    private static final int MAKS_PANJANG_NAMA_KOLOM = 100;
+    private static final int MAX_COLUMN_NAME_LENGTH = 100;
 
     @Autowired
     private DatasetRepository datasetRepository;
@@ -112,9 +112,38 @@ public class DatasetImportService {
         COLUMN_META.put("kota", new String[] { "Kota", "Text", "" });
     }
 
+    /**
+     * Bentuk lama: mendaftarkan berkasnya SEKALIGUS membaca isinya. Dipakai
+     * importir seed, yang memang hanya berurusan dengan satu berkas.
+     *
+     * Berkas didaftarkan LEBIH DULU, tidak lagi sesudah isinya dibaca. Sejak
+     * changeset 37 setiap baris menyimpan berkas asalnya, dan berkas itu harus
+     * sudah punya id sebelum baris pertama ditulis.
+     */
     @Transactional
     public void importCsv(Dataset dataset, Path source, String contentType) throws IOException {
-        log.info("Mengimpor {} ke dataset {}", source, dataset.getSlug());
+        DatasetResource resource = saveResource(dataset, source, contentType);
+        importCsv(dataset, source, contentType, resource);
+        electMainResource(dataset);
+    }
+
+    /**
+     * Membaca isi satu berkas menjadi tabel milik berkas itu.
+     *
+     * @param resource berkas yang sudah terdaftar dan menjadi asal isi ini.
+     *                 Baris dan kolomnya ditandai dengannya, sehingga satu
+     *                 dataset bisa memuat beberapa tabel tanpa isinya
+     *                 bercampur.
+     */
+    @Transactional
+    public void importCsv(Dataset dataset, Path source, String contentType,
+            DatasetResource resource) throws IOException {
+        if (resource == null) {
+            throw new IllegalArgumentException(
+                    "Isi tabel harus punya berkas asal - importCsv dipanggil tanpa resource.");
+        }
+        log.info("Mengimpor {} ke dataset {} (berkas {})", source, dataset.getSlug(),
+                resource.getFileName());
 
         try (BufferedReader reader = Files.newBufferedReader(source, StandardCharsets.UTF_8)) {
             String headerLine = reader.readLine();
@@ -122,19 +151,19 @@ public class DatasetImportService {
                 log.warn("Berkas CSV kosong, impor dibatalkan.");
                 return;
             }
-            headerLine = buangBom(headerLine);
-            char pemisah = kenaliPemisah(headerLine);
-            List<String> headers = parseCsvLine(headerLine, pemisah);
-            headers = buangKolomEkorKosong(headers);
-            periksaHeader(headers, pemisah);
-            log.info("Pemisah kolom terdeteksi: {} ({} kolom)", NAMA_PEMISAH.get(pemisah), headers.size());
+            headerLine = stripBom(headerLine);
+            char delimiter = detectDelimiter(headerLine);
+            List<String> headers = parseCsvLine(headerLine, delimiter);
+            headers = dropTrailingEmptyColumn(headers);
+            validateHeaders(headers, delimiter);
+            log.info("Pemisah kolom terdeteksi: {} ({} kolom)", DELIMITER_NAMES.get(delimiter), headers.size());
 
             // Contoh nilai per kolom, dikumpulkan sambil mengalirkan baris.
             // Kolom baru bisa disimpan setelah loop karena tipe datanya ditebak
             // dari isinya — dan isinya baru diketahui setelah dibaca.
-            List<List<String>> contoh = new ArrayList<>();
+            List<List<String>> samples = new ArrayList<>();
             for (int i = 0; i < headers.size(); i++) {
-                contoh.add(new ArrayList<>());
+                samples.add(new ArrayList<>());
             }
 
             List<DatasetRow> batch = new ArrayList<>(BATCH_SIZE);
@@ -145,18 +174,19 @@ public class DatasetImportService {
                 if (line.isBlank()) {
                     continue;
                 }
-                List<String> values = parseCsvLine(line, pemisah);
+                List<String> values = parseCsvLine(line, delimiter);
                 Map<String, Object> data = new LinkedHashMap<>();
                 for (int i = 0; i < headers.size(); i++) {
-                    String nilai = i < values.size() ? values.get(i) : null;
-                    data.put(headers.get(i), nilai);
-                    if (contoh.get(i).size() < ColumnTypeGuesser.SAMPLE_SIZE && nilai != null) {
-                        contoh.get(i).add(nilai);
+                    String value = i < values.size() ? values.get(i) : null;
+                    data.put(headers.get(i), value);
+                    if (samples.get(i).size() < ColumnTypeGuesser.SAMPLE_SIZE && value != null) {
+                        samples.get(i).add(value);
                     }
                 }
 
                 DatasetRow row = new DatasetRow();
                 row.setDatasetId(dataset.getId());
+                row.setResourceId(resource.getId());
                 row.setRowNumber(++rowNumber);
                 row.setData(data);
                 batch.add(row);
@@ -172,13 +202,16 @@ public class DatasetImportService {
                 total += batch.size();
             }
 
-            saveColumns(dataset, headers, contoh);
-            saveResource(dataset, source, contentType);
+            saveColumns(dataset, resource, headers, samples);
 
-            dataset.setRowCount(total);
-            dataset.setColCount(headers.size());
-            datasetRepository.save(dataset);
+            resource.setRowCount(total);
+            resource.setColCount(headers.size());
+            datasetResourceRepository.save(resource);
 
+            // Angka milik dataset TIDAK ditetapkan di sini. Berkas ini belum
+            // tentu yang mewakili datasetnya, dan itu baru bisa diketahui
+            // setelah semua berkasnya selesai dibaca — lihat
+            // electMainResource.
             log.info("Impor selesai: {} baris, {} kolom.", total, headers.size());
         }
     }
@@ -188,8 +221,13 @@ public class DatasetImportService {
      * Indonesia dan satuan yang ditulis tangan di sana lebih baik daripada apa
      * pun yang bisa ditebak. Kolom di luar itu ditebak dari isinya.
      */
-    private void saveColumns(Dataset dataset, List<String> headers, List<List<String>> contoh) {
-        if (datasetColumnRepository.countByDatasetId(dataset.getId()) > 0) {
+    private void saveColumns(Dataset dataset, DatasetResource resource,
+            List<String> headers, List<List<String>> samples) {
+        // Penjagaan "sudah pernah diimpor" kini per BERKAS. Dulu per dataset,
+        // dan itu membuat berkas kedua pada dataset yang sama tidak pernah
+        // mendapat kolom sama sekali - barisnya masuk, tapi tabelnya tampil
+        // tanpa satu pun judul kolom.
+        if (datasetColumnRepository.countByResourceIdAndDeletedAtIsNull(resource.getId()) > 0) {
             return;
         }
         List<DatasetColumn> columns = new ArrayList<>();
@@ -199,6 +237,7 @@ public class DatasetImportService {
 
             DatasetColumn column = new DatasetColumn();
             column.setDataset(dataset);
+            column.setResourceId(resource.getId());
             column.setMachineName(machine);
             if (meta != null) {
                 column.setDisplayName(meta[0]);
@@ -206,7 +245,7 @@ public class DatasetImportService {
                 column.setUnit(meta[2].isEmpty() ? null : meta[2]);
             } else {
                 column.setDisplayName(columnTypeGuesser.prettifyName(machine));
-                column.setDataType(columnTypeGuesser.guessType(contoh.get(i)));
+                column.setDataType(columnTypeGuesser.guessType(samples.get(i)));
                 column.setUnit(null);
             }
             column.setSortOrder(i + 1);
@@ -215,16 +254,105 @@ public class DatasetImportService {
         datasetColumnRepository.saveAll(columns);
     }
 
-    private void saveResource(Dataset dataset, Path source, String contentType) {
-        if (!datasetResourceRepository.findAllByDatasetIdAndDeletedAtIsNull(dataset.getId()).isEmpty()) {
-            return;
+    /**
+     * Menentukan berkas mana yang mewakili dataset, lalu menyalin angkanya.
+     *
+     * Yang dipilih adalah tabel dengan BARIS TERBANYAK, bukan berkas yang
+     * kebetulan diunggah paling dulu. Satu angka di halaman katalog harus
+     * mewakili isi dataset, dan antara CSV lima baris dengan Excel 61.876
+     * baris, yang kedualah yang sebenarnya orang cari. Urutan unggah tidak
+     * mengatakan apa-apa tentang itu.
+     *
+     * Menjumlahkan seluruh berkas bukan pilihan: dua berkas yang isinya sama
+     * akan terbaca sebagai dua kali lipat data yang sebenarnya ada.
+     *
+     * Seri diputus oleh berkas yang lebih dulu terdaftar, supaya hasilnya
+     * tetap sama setiap kali dihitung ulang.
+     */
+    @Transactional
+    public void electMainResource(Dataset dataset) {
+        List<DatasetResource> files = datasetResourceRepository
+                .findAllByDatasetIdAndDeletedAtIsNullOrderByFormatSortOrderAscFileNameAsc(
+                        dataset.getId());
+
+        DatasetResource main = files.stream()
+                .filter(r -> r.getRowCount() > 0)
+                .max(java.util.Comparator.comparingLong(DatasetResource::getRowCount)
+                        .thenComparing(DatasetResource::getCreatedAt,
+                                java.util.Comparator.reverseOrder()))
+                .orElse(null);
+
+        for (DatasetResource r : files) {
+            boolean shouldBe = main != null && r.getId().equals(main.getId());
+            if (r.isTableSource() != shouldBe) {
+                r.setTableSource(shouldBe);
+                datasetResourceRepository.save(r);
+            }
+        }
+
+        dataset.setRowCount(main == null ? 0 : main.getRowCount());
+        dataset.setColCount(main == null ? 0 : main.getColCount());
+        datasetRepository.save(dataset);
+
+        log.info("Berkas utama dataset {}: {}", dataset.getSlug(),
+                main == null ? "tidak ada tabel" : main.getFileName());
+    }
+
+    /**
+     * Menyimpan satu berkas milik dataset, apa pun jenisnya.
+     *
+     * Terpisah dari pembacaan isi CSV dengan sengaja: dataset boleh memuat
+     * XLSX, PDF, atau DOCX yang tidak punya tabel untuk dibaca, dan berkas
+     * seperti itu tetap harus bisa diunduh.
+     *
+     * Nama berkas dibuat dari slug dataset plus nomor urut, BUKAN dari nama
+     * berkas asal. Nama asal datang dari mesin orang lain: bisa memuat spasi,
+     * karakter yang tidak sah di sistem berkas lain, atau bahkan pemisah path.
+     * Nama aslinya tidak hilang — yang ditulis penerbit tersimpan di kolom
+     * label.
+     */
+    @Transactional
+    public DatasetResource registerFile(Dataset dataset, Path source, Format format,
+            String label, String contentType, int order) {
+        String extension = format.getName().toLowerCase(java.util.Locale.ROOT);
+        String fileName = order == 1
+                ? dataset.getSlug() + "." + extension
+                : dataset.getSlug() + "-" + order + "." + extension;
+        String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
+        StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
+
+        DatasetResource resource = new DatasetResource();
+        resource.setDataset(dataset);
+        resource.setFormat(format);
+        resource.setLabel(label);
+        resource.setFileName(fileName);
+        resource.setContentType(contentType);
+        resource.setStorageProvider(stored.getStorageProvider());
+        resource.setStorageKey(stored.getStorageKey());
+        resource.setSizeBytes(stored.getSizeBytes());
+        resource.setChecksumSha256(stored.getChecksumSha256());
+        datasetResourceRepository.save(resource);
+
+        log.info("Berkas terdaftar: {} ({} byte)", storageKey, stored.getSizeBytes());
+        return resource;
+    }
+
+    private DatasetResource saveResource(Dataset dataset, Path source, String contentType) {
+        List<DatasetResource> existing = datasetResourceRepository
+                .findAllByDatasetIdAndDeletedAtIsNullOrderByFormatSortOrderAscFileNameAsc(dataset.getId());
+        if (!existing.isEmpty()) {
+            // Berkasnya sudah pernah didaftarkan. Yang pertama dikembalikan,
+            // bukan null: isi yang akan dibaca tetap harus punya berkas asal,
+            // dan tanpa itu barisnya tersimpan tanpa penunjuk lalu tidak
+            // pernah muncul di tab mana pun.
+            return existing.get(0);
         }
         Optional<Format> csvFormat = formatRepository.findAllByDeletedAtIsNullOrderBySortOrderAsc().stream()
                 .filter(f -> "CSV".equals(f.getName()))
                 .findFirst();
         if (csvFormat.isEmpty()) {
-            log.warn("Format CSV tidak ada di tabel format — berkas tidak didaftarkan.");
-            return;
+            throw new BusinessValidationException(
+                    "Format CSV belum terdaftar di tabel format, sehingga berkasnya tidak bisa disimpan.");
         }
 
         String fileName = dataset.getSlug() + ".csv";
@@ -235,6 +363,9 @@ public class DatasetImportService {
         resource.setDataset(dataset);
         resource.setFormat(csvFormat.get());
         resource.setFileName(fileName);
+        // Jalur seed tidak punya penerbit yang mengisi nama berkas, jadi judul
+        // datasetnya dipakai — supaya tidak ada baris yang tampil tanpa nama.
+        resource.setLabel(dataset.getTitle());
         resource.setContentType(contentType);
         resource.setStorageProvider(stored.getStorageProvider());
         resource.setStorageKey(stored.getStorageKey());
@@ -243,6 +374,7 @@ public class DatasetImportService {
         datasetResourceRepository.save(resource);
 
         log.info("Berkas terdaftar: {} ({} byte)", storageKey, stored.getSizeBytes());
+        return resource;
     }
 
     /** Pembaca CSV minimal yang menghormati tanda kutip ganda. */
@@ -251,10 +383,10 @@ public class DatasetImportService {
      *
      * Excel menulis BOM pada berkas CSV UTF-8, dan {@code BufferedReader} tidak
      * membuangnya. Tanpa ini, kolom pertama diam-diam bernama "﻿Track"
-     * alih-alih "Track" — tidak terlihat mata, tapi setiap pencarian kunci
+     * alih-alih "Track" — tidak seen mata, tapi setiap pencarian kunci
      * JSONB untuk kolom itu akan gagal tanpa penjelasan.
      */
-    private String buangBom(String headerLine) {
+    private String stripBom(String headerLine) {
         return headerLine.startsWith("﻿") ? headerLine.substring(1) : headerLine;
     }
 
@@ -267,14 +399,14 @@ public class DatasetImportService {
      * — sebelumnya seluruh unggahan ditolak karenanya.
      *
      * Hanya kolom paling ujung yang diampuni. Kolom kosong di TENGAH tetap
-     * ditolak {@link #periksaHeader}, karena itu menandakan header yang memang
+     * ditolak {@link #validateHeaders}, karena itu menandakan header yang memang
      * rusak dan menerimanya berarti membiarkan satu kolom data kehilangan nama.
      */
-    private List<String> buangKolomEkorKosong(List<String> headers) {
+    private List<String> dropTrailingEmptyColumn(List<String> headers) {
         if (headers.size() > 1 && headers.get(headers.size() - 1).isBlank()) {
-            List<String> rapi = new ArrayList<>(headers.subList(0, headers.size() - 1));
-            log.info("Pemisah berlebih di ujung header diabaikan; kolom menjadi {}.", rapi.size());
-            return rapi;
+            List<String> cleaned = new ArrayList<>(headers.subList(0, headers.size() - 1));
+            log.info("Pemisah berlebih di ujung header diabaikan; kolom menjadi {}.", cleaned.size());
+            return cleaned;
         }
         return headers;
     }
@@ -288,35 +420,35 @@ public class DatasetImportService {
      * judul seperti {@code "Nama, Lengkap";umur} tidak salah dihitung sebagai
      * berpemisah koma.
      *
-     * Bila tidak ada satu pun kandidat yang ditemukan, koma dipakai sebagai
-     * bawaan — hasilnya satu kolom, dan {@link #periksaHeader} yang akan
+     * Bila tidak ada satu pun candidate yang ditemukan, koma dipakai sebagai
+     * bawaan — hasilnya satu kolom, dan {@link #validateHeaders} yang akan
      * menjelaskannya kepada penerbit bila itu memang keliru.
      */
-    private char kenaliPemisah(String headerLine) {
-        char terpilih = PEMISAH_KANDIDAT[0];
-        int terbanyak = 0;
-        for (char kandidat : PEMISAH_KANDIDAT) {
-            int jumlah = hitungDiLuarKutip(headerLine, kandidat);
-            if (jumlah > terbanyak) {
-                terbanyak = jumlah;
-                terpilih = kandidat;
+    private char detectDelimiter(String headerLine) {
+        char chosen = DELIMITER_CANDIDATES[0];
+        int highest = 0;
+        for (char candidate : DELIMITER_CANDIDATES) {
+            int count = countOutsideQuotes(headerLine, candidate);
+            if (count > highest) {
+                highest = count;
+                chosen = candidate;
             }
         }
-        return terpilih;
+        return chosen;
     }
 
-    private int hitungDiLuarKutip(String line, char target) {
-        int jumlah = 0;
-        boolean dalamKutip = false;
+    private int countOutsideQuotes(String line, char target) {
+        int count = 0;
+        boolean inQuotes = false;
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
             if (c == '"') {
-                dalamKutip = !dalamKutip;
-            } else if (c == target && !dalamKutip) {
-                jumlah++;
+                inQuotes = !inQuotes;
+            } else if (c == target && !inQuotes) {
+                count++;
             }
         }
-        return jumlah;
+        return count;
     }
 
     /**
@@ -327,43 +459,43 @@ public class DatasetImportService {
      * jadi galat 500 — atau lebih buruk, lolos diam-diam dan menghasilkan
      * dataset yang strukturnya rusak.
      */
-    private void periksaHeader(List<String> headers, char pemisah) {
+    private void validateHeaders(List<String> headers, char delimiter) {
         for (int i = 0; i < headers.size(); i++) {
-            String nama = headers.get(i);
+            String name = headers.get(i);
 
-            if (nama.isBlank()) {
+            if (name.isBlank()) {
                 throw new BusinessValidationException(
                         "Nama kolom ke-" + (i + 1) + " dari " + headers.size()
                                 + " kosong. Periksa baris pertama berkas: ada dua pemisah "
                                 + "berdempetan, atau satu judul kolom belum diisi.");
             }
 
-            if (nama.length() > MAKS_PANJANG_NAMA_KOLOM) {
-                String petunjuk = headers.size() == 1
+            if (name.length() > MAX_COLUMN_NAME_LENGTH) {
+                String hint = headers.size() == 1
                         ? " Berkas ini terbaca hanya sebagai SATU kolom, jadi besar kemungkinan "
-                                + "pemisahnya bukan " + NAMA_PEMISAH.get(pemisah)
+                                + "pemisahnya bukan " + DELIMITER_NAMES.get(delimiter)
                                 + ". Simpan ulang sebagai CSV berpemisah koma."
                         : "";
                 throw new BusinessValidationException(
                         "Nama kolom ke-" + (i + 1) + " terlalu panjang ("
-                                + nama.length() + " karakter, maksimal " + MAKS_PANJANG_NAMA_KOLOM
-                                + "): \"" + nama.substring(0, 60) + "...\"." + petunjuk);
+                                + name.length() + " karakter, maksimal " + MAX_COLUMN_NAME_LENGTH
+                                + "): \"" + name.substring(0, 60) + "...\"." + hint);
             }
         }
 
         // Kunci JSONB tidak boleh kembar: yang belakangan akan menimpa yang
         // duluan, sehingga satu kolom hilang tanpa jejak.
-        Set<String> terlihat = new LinkedHashSet<>();
-        for (String nama : headers) {
-            if (!terlihat.add(nama)) {
+        Set<String> seen = new LinkedHashSet<>();
+        for (String name : headers) {
+            if (!seen.add(name)) {
                 throw new BusinessValidationException(
-                        "Nama kolom \"" + nama + "\" muncul lebih dari sekali. "
+                        "Nama kolom \"" + name + "\" muncul lebih dari sekali. "
                                 + "Setiap kolom harus punya nama yang berbeda.");
             }
         }
     }
 
-    private List<String> parseCsvLine(String line, char pemisah) {
+    private List<String> parseCsvLine(String line, char delimiter) {
         List<String> out = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean inQuotes = false;
@@ -382,7 +514,7 @@ public class DatasetImportService {
                 }
             } else if (c == '"') {
                 inQuotes = true;
-            } else if (c == pemisah) {
+            } else if (c == delimiter) {
                 out.add(current.toString().trim());
                 current.setLength(0);
             } else {

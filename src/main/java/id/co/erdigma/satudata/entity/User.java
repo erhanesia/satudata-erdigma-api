@@ -62,6 +62,20 @@ public class User {
     /** Bahan mentah asal HRIS menurunkan tingkat izin, mis. "Manager". */
     private String jobLevel;
 
+    /**
+     * Posisi yang dipakai memutuskan dataset mana boleh dilihat.
+     *
+     * MILIK PORTAL INI, bukan salinan kolom HRIS. Sembilan nilainya ada di
+     * {@link id.co.erdigma.satudata.enums.JobPosition}; HRIS sendiri menyimpan
+     * dua sumbu berbeda ({@code job_level} yang enum dan {@code position} yang
+     * teks bebas), dan tak satu pun cocok satu-satu dengan daftar itu.
+     *
+     * Kosong berarti pemiliknya hanya bisa melihat dataset yang tidak bertag —
+     * gagal ke arah yang aman. Lihat changeset 00032.
+     */
+    @Column(name = "access_position", length = 60)
+    private String accessPosition;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "division_id", nullable = true)
     @Fetch(FetchMode.SELECT)

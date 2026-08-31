@@ -1,0 +1,63 @@
+# Nama berkas versi manusia, terpisah dari nama berkas versi mesin.
+#
+# Desain "Tambah dataset" meminta penerbit mengisi "Nama file" untuk setiap
+# berkas — misalnya "Kamus Kolom" untuk berkas bernama
+# kinerja-penjualan-bulanan-2.xlsx. Panel detail menampilkan keduanya bertumpuk:
+# label di atas, nama berkas asli di bawahnya dengan huruf monospace.
+#
+# Keduanya memang harus ada. Nama berkas asli dibutuhkan saat mengunduh dan
+# tidak boleh diarang-arang; label dibutuhkan supaya daftar berkas bisa dibaca
+# tanpa menebak isi dari nama file. Menyimpan satu kolom saja memaksa memilih
+# antara "unggahan-02.xlsx" yang tidak berarti apa-apa, atau "Kamus Kolom" yang
+# tidak bisa dipakai menyimpan berkas.
+#
+# Nullable: berkas yang sudah terlanjur ada tidak punya label, dan tampilan
+# jatuh ke nama berkasnya.
+databaseChangeLog:
+  - changeSet:
+      id: "33"
+      author: author
+      changes:
+        - addColumn:
+            tableName: dataset_resource
+            columns:
+              - column:
+                  name: label
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+
+        # Beri label pada berkas contoh, supaya panel detail langsung
+        # memperlihatkan bentuk yang dimaksud desain.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_resource r
+              SET label = v.label
+              FROM (VALUES
+                ('kinerja-penjualan-bulanan.csv',        'Kinerja Penjualan Bulanan'),
+                ('kamus-kolom-penjualan-bulanan.xlsx',   'Kamus Kolom'),
+                ('metrik-uptime-insiden.csv',            'Metrik Uptime & Insiden'),
+                ('partisipasi-pelatihan-karyawan.xlsx',  'Partisipasi Pelatihan'),
+                ('panduan-partisipasi-pelatihan.pdf',    'Panduan Pengisian'),
+                ('utilisasi-kapasitas-tim.csv',          'Utilisasi Kapasitas Tim'),
+                ('indeks-biaya-operasional.csv',         'Indeks Biaya Operasional'),
+                ('peta-cakupan-cabang-gudang.pdf',       'Peta Cakupan Cabang'),
+                ('daftar-cabang-dan-gudang.xlsx',        'Daftar Cabang & Gudang'),
+                ('engagement-kampanye-pemasaran.csv',    'Engagement Kampanye'),
+                ('ringkasan-kampanye-pemasaran.docx',    'Ringkasan Kampanye')
+              ) AS v(file_name, label)
+              WHERE r.file_name = v.file_name AND r.label IS NULL;
+
+        # Berkas lama yang tidak ada di daftar di atas — termasuk hasil unggahan
+        # pengujian — memakai nama berkasnya sendiri sebagai label, supaya tidak
+        # ada baris yang tampil tanpa judul sama sekali.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_resource SET label = file_name WHERE label IS NULL;
+
+      rollback:
+        - dropColumn:
+            tableName: dataset_resource
+            columnName: label

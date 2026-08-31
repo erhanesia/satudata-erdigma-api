@@ -29,6 +29,7 @@ public class MeService {
         response.setRole(user.getRole());
         response.setHrisPermissionLevel(user.getHrisPermissionLevel());
         response.setJobLevel(user.getJobLevel());
+        response.setAccessPosition(user.getAccessPosition());
         if (user.getDivision() != null) {
             response.setDivision(divisionMapper.toResponseLite(user.getDivision()));
         }

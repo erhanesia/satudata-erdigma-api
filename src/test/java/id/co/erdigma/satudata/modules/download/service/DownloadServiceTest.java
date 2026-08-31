@@ -22,6 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
+import id.co.erdigma.satudata.modules.dataset.helper.DatasetAccessGuard;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
@@ -39,6 +40,15 @@ class DownloadServiceTest {
     private final DatasetResourceRepository datasetResourceRepository = mock(DatasetResourceRepository.class);
     private final DownloadLogRepository downloadLogRepository = mock(DownloadLogRepository.class);
     private final FileStorage fileStorage = mock(FileStorage.class);
+    /*
+     * Penjaga akses ditambahkan bersama pembatasan dataset per posisi jabatan.
+     *
+     * Dipakai ASLINYA, bukan ditiru: kelasnya tidak punya dependensi apa pun,
+     * dan dataset dalam tes ini tidak bertag posisi -- sehingga canView()
+     * mengembalikan true tanpa perlu diatur. Menirunya juga tidak bisa di sini:
+     * Mockito gagal membangun tiruan untuk kelas ini.
+     */
+    private final DatasetAccessGuard accessGuard = new DatasetAccessGuard();
     private final DownloadService downloadService = new DownloadService();
 
     @BeforeEach
@@ -47,6 +57,7 @@ class DownloadServiceTest {
         ReflectionTestUtils.setField(downloadService, "datasetResourceRepository", datasetResourceRepository);
         ReflectionTestUtils.setField(downloadService, "downloadLogRepository", downloadLogRepository);
         ReflectionTestUtils.setField(downloadService, "fileStorage", fileStorage);
+        ReflectionTestUtils.setField(downloadService, "accessGuard", accessGuard);
     }
 
     private Dataset siapkanDataset(String slug) {

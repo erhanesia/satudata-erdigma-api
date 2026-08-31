@@ -1,0 +1,59 @@
+# Kolom division.logo_bg dicabut; warnanya dihitung dari kode divisi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Warna avatar divisi murni urusan tampilan, dan diturunkan dari pengenal yang
+# sifatnya sembarang. Tidak ada informasi di dalamnya yang tidak bisa dihitung
+# ulang kapan saja dari `code`.
+#
+# Untuk delapan divisi desain kolom ini masih bermakna: kedelapan warnanya
+# dipilih tangan oleh desainer, satu per divisi. Begitu changeset 42
+# menggantinya dengan 32 team, makna itu hilang — ke-32 nilainya dibangkitkan
+# dari hash id HRIS, bukan dipilih siapa pun. Sejak saat itu kolomnya menyimpan
+# persis apa yang bisa dihitung klien sendiri.
+#
+# ---------------------------------------------------------------------------
+# Dan dua sumber itu sudah tidak sepakat
+#
+# `DivisionAvatar` punya warna cadangan untuk keadaan `logoBg` tidak terkirim.
+# Cadangan itu memakai hash polinomial atas `code`, sementara changeset 42
+# memakai SHA-256 atas id HRIS. Dua fungsi berbeda untuk satu nilai yang sama,
+# dan hasilnya berbeda pada 28 dari 32 divisi.
+#
+# Selama server selalu mengirim `logoBg`, selisih itu tidak terlihat. Begitu
+# satu respons saja tidak membawanya, hampir seluruh divisi berganti warna
+# tanpa ada yang mengubah apa pun.
+#
+# Menyamakan kedua fungsi bukan jalan keluar: itu berarti memelihara hash yang
+# identik di Java dan TypeScript, dan setiap perbedaan kecil di kemudian hari
+# menghidupkan lagi persoalan yang sama. Lebih baik sumbernya cuma satu.
+#
+# ---------------------------------------------------------------------------
+# Yang hilang
+#
+# Kemampuan menimpa warna satu divisi secara khusus. Belum pernah ada yang
+# memintanya, tidak ada antarmuka untuk menyetelnya, dan tidak satu pun dari
+# 32 nilai yang ada sekarang merupakan pilihan manusia.
+#
+# Kalau suatu saat sebuah team memang perlu warna mereknya sendiri, kolomnya
+# bisa dikembalikan — tetapi saat itu ia harus punya cara pengisian yang jelas,
+# bukan sekadar hasil hash yang dibekukan seperti sekarang.
+databaseChangeLog:
+  - changeSet:
+      id: "46"
+      author: author
+      changes:
+        - dropColumn:
+            tableName: division
+            columnName: logo_bg
+
+      # Kerangkanya saja. Nilainya tidak perlu dipulihkan: klien menghitungnya
+      # sendiri dari `code`, jadi kolom kosong pun tidak mengubah tampilan.
+      rollback:
+        - addColumn:
+            tableName: division
+            columns:
+              - column:
+                  name: logo_bg
+                  type: varchar(20)

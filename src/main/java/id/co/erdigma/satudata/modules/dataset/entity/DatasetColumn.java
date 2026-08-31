@@ -47,6 +47,10 @@ public class DatasetColumn {
     @EqualsAndHashCode.Exclude
     private Dataset dataset;
 
+    /** Berkas asal kolom ini. Lihat {@code DatasetRow#resourceId}. */
+    @Column(name = "resource_id", nullable = false)
+    private UUID resourceId;
+
     private String machineName;
     private String displayName;
     private String dataType;

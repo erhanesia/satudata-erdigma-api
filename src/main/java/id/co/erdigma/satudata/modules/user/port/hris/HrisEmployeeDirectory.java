@@ -132,13 +132,19 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
         user.setHrisPermissionLevel(level);
         user.setRole(HrisRoleMapper.role(level));
 
-        UUID departementId = (employee.getDepartement() != null) ? employee.getDepartement().getId() : null;
-        if (departementId != null) {
-            // Divisi hanya ditimpa kalau padanannya ketemu. Kolom
-            // division.hris_departement_id masih null untuk kedelapan divisi
-            // seed, jadi untuk sementara pengguna baru berdivisi null — itu
-            // sudah nullable di sepanjang MeService dan CurrentUserService.
-            divisionRepository.findByHrisDepartementIdAndDeletedAtIsNull(departementId)
+        UUID teamId = (employee.getTeam() != null) ? employee.getTeam().getId() : null;
+        if (teamId != null) {
+            // Divisi hanya ditimpa kalau padanannya ketemu, sehingga divisi yang
+            // sudah disetel tangan tidak hilang gara-gara satu team baru di HRIS
+            // yang belum ada di tabel `division`.
+            //
+            // Sebelum changeset 41 yang dicocokkan di sini `departement`, dan
+            // padanannya TIDAK PERNAH ketemu karena kolomnya kosong untuk
+            // kedelapan divisi desain. Akibatnya setiap pengguna Cognito
+            // berdivisi null, dan karena itu tidak bisa menerbitkan dataset
+            // sama sekali — DatasetUploadService menolaknya karena tidak ada
+            // yang bisa dicatat sebagai penerbit.
+            divisionRepository.findByHrisTeamIdAndDeletedAtIsNull(teamId)
                     .ifPresent(user::setDivision);
         }
 

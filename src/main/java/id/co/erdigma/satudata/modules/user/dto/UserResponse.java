@@ -28,5 +28,13 @@ public class UserResponse {
     private Role role;
     private HrisPermissionLevel hrisPermissionLevel;
     private String jobLevel;
+
+    /**
+     * Posisi yang menentukan dataset mana boleh dilihat. Dikirim ke browser
+     * supaya antarmuka bisa menjelaskan SEBAB sebuah dataset tidak muncul,
+     * bukan sekadar menyembunyikannya tanpa keterangan.
+     */
+    private String accessPosition;
+
     private DivisionResponseLite division;
 }

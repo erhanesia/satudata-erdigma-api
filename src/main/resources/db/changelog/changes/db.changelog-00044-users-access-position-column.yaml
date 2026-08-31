@@ -1,0 +1,53 @@
+# Pasangan dari pagar yang baru dipasang di changeset 32.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Changeset 32 mencampur dua hal: ia menambah kolom `users.access_position`
+# sekaligus menyisipkan sembilan pengguna contoh. Selama tidak berpagar,
+# kesembilan pengguna itu ikut ke produksi — orang-orang fiktif dengan alamat
+# @erdigma.co.id di portal internal yang sesungguhnya.
+#
+# Memberinya pagar `dev` menghentikan itu, tetapi sekaligus membuat kolomnya
+# ikut hilang di produksi. Padahal `access_position` bukan data contoh: ia
+# dipakai `DatasetAccessGuard` untuk menentukan siapa boleh melihat dataset
+# bertag posisi. Tanpa kolomnya, entitas `User` tidak bisa dipetakan sama
+# sekali.
+#
+# Jadi kolomnya dipindahkan ke sini, tanpa pagar.
+#
+# ---------------------------------------------------------------------------
+# Kenapa bernomor 44 dan bukan 31b
+#
+# Berbeda dari changeset 31a, yang ini TIDAK harus berjalan lebih dulu. Di
+# database kosong urutannya: changeset 32 dilewati karena berpagar, lalu
+# changeset ini menambahkan kolomnya. Di laptop urutannya terbalik — changeset
+# 32 sudah pernah jalan dan kolomnya sudah ada — dan preConditions menangani
+# perbedaan itu.
+#
+# `onFail: MARK_RAN` membuatnya dicatat selesai tanpa berbuat apa-apa bila
+# kolomnya sudah ada, sehingga satu berkas yang sama benar di kedua keadaan.
+databaseChangeLog:
+  - changeSet:
+      id: "44"
+      author: author
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: users
+                columnName: access_position
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: access_position
+                  type: varchar(60)
+                  constraints:
+                    nullable: true
+
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: access_position

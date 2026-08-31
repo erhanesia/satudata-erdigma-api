@@ -76,6 +76,22 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
+		<!--
+			Pembaca berkas Excel.
+
+			Dibutuhkan karena portal ini menerima XLSX sebagai berkas data, bukan
+			sekadar lampiran: penerbit mengunggah Excel dan mengharapkan isinya
+			bisa dilihat sebagai tabel, sama seperti CSV.
+
+			Versinya ditulis eksplisit — Spring Boot tidak mengelola POI, jadi
+			tanpa <version> build-nya gagal menentukan yang mana.
+		-->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.4.1</version>
+		</dependency>
+
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>

@@ -29,8 +29,8 @@ public class ColumnTypeGuesser {
     /** Ambang kesepakatan. Di bawah ini dianggap tidak meyakinkan. */
     private static final double THRESHOLD = 0.9;
 
-    public String guessType(List<String> contoh) {
-        List<String> terisi = contoh.stream()
+    public String guessType(List<String> samples) {
+        List<String> terisi = samples.stream()
                 .filter(v -> v != null && !v.isBlank())
                 .toList();
         if (terisi.isEmpty()) {
@@ -41,8 +41,8 @@ public class ColumnTypeGuesser {
         if ((double) angka / terisi.size() >= THRESHOLD) {
             return "Numeric";
         }
-        long tanggal = terisi.stream().filter(this::looksDate).count();
-        if ((double) tanggal / terisi.size() >= THRESHOLD) {
+        long date = terisi.stream().filter(this::looksDate).count();
+        if ((double) date / terisi.size() >= THRESHOLD) {
             return "Date";
         }
         return "Text";
@@ -58,12 +58,12 @@ public class ColumnTypeGuesser {
      * nilai. Kolom seperti itu lebih baik jatuh ke Text dan diperbaiki manusia.
      */
     private boolean looksNumeric(String value) {
-        String bersih = value.trim().replace(',', '.');
-        if (bersih.isEmpty() || bersih.chars().filter(c -> c == '.').count() > 1) {
+        String cleaned = value.trim().replace(',', '.');
+        if (cleaned.isEmpty() || cleaned.chars().filter(c -> c == '.').count() > 1) {
             return false;
         }
         try {
-            Double.parseDouble(bersih);
+            Double.parseDouble(cleaned);
             return true;
         } catch (NumberFormatException e) {
             return false;

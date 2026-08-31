@@ -1,0 +1,72 @@
+# Karyawan dummy yang menjadi PENERBIT dataset contoh.
+#
+# Sampai sekarang seluruh dataset seed tidak punya pemilik: kolom uploaded_by
+# kosong, sehingga panel admin menampilkan "—" pada kolom "Diunggah oleh" dan
+# kartu "Kontributor" berisi nol. Tujuh baris ini mengisi kekosongan itu dengan
+# orang, bukan dengan angka karangan di layar.
+#
+# Namanya sengaja mengikuti desain panel admin supaya tangkapan layar desain
+# dan aplikasi yang berjalan bisa dibandingkan baris demi baris saat demo.
+#
+# Catatan tentang job_level: seluruhnya diberi tingkat yang memetakan ke peran
+# portal PUBLISHER (lihat changeset 00018), karena mereka memang menerbitkan
+# data. Kolom position berisi jabatan fungsionalnya dan memang boleh berbeda
+# dari job_level — keduanya sumbu yang berlainan di HRIS.
+#
+# HAPUS bersama changeset 00010, 00018, dan 00019 saat integrasi HRIS aktif.
+databaseChangeLog:
+  - changeSet:
+      id: "27"
+      author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO users (id, cognito_id, email, name, position, role,
+                                 hris_permission_level, job_level, division_id,
+                                 created_at, updated_at)
+              VALUES
+                ('90000000-0000-4000-8000-000000000011', 'dummy-fannisa',
+                 'fannisa.oktavia@erdigma.co.id', 'Fannisa Oktavia', 'Data Analyst',
+                 'PUBLISHER', 'MANAGER', 'Coordinator',
+                 'a0000000-0000-4000-8000-000000000004', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000012', 'dummy-rizky',
+                 'rizky.pratama@erdigma.co.id', 'Rizky Pratama', 'Site Reliability Engineer',
+                 'PUBLISHER', 'MANAGER', 'Supervisor',
+                 'a0000000-0000-4000-8000-000000000002', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000013', 'dummy-dimas-aryo',
+                 'dimas.aryo@erdigma.co.id', 'Dimas Aryo', 'Product Analyst',
+                 'PUBLISHER', 'MANAGER', 'Coordinator',
+                 'a0000000-0000-4000-8000-000000000003', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000014', 'dummy-andri',
+                 'andri.kusuma@erdigma.co.id', 'Andri Kusuma', 'Financial Analyst',
+                 'PUBLISHER', 'MANAGER', 'Coordinator',
+                 'a0000000-0000-4000-8000-000000000005', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000015', 'dummy-amalia',
+                 'amalia.rakhmawati@erdigma.co.id', 'Amalia Rakhmawati', 'HR Business Partner',
+                 'PUBLISHER', 'MANAGER', 'Manager',
+                 'a0000000-0000-4000-8000-000000000007', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000016', 'dummy-bagas-nugroho',
+                 'bagas.nugroho@erdigma.co.id', 'Bagas Nugroho', 'GIS Specialist',
+                 'PUBLISHER', 'MANAGER', 'Supervisor',
+                 'a0000000-0000-4000-8000-000000000001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+                ('90000000-0000-4000-8000-000000000017', 'dummy-salam',
+                 'salam.adzkiya@erdigma.co.id', 'Salam Adzkiya', 'Marketing Analyst',
+                 'PUBLISHER', 'MANAGER', 'Coordinator',
+                 'a0000000-0000-4000-8000-000000000008', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+      rollback:
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM users WHERE cognito_id IN
+                ('dummy-fannisa','dummy-rizky','dummy-dimas-aryo','dummy-andri',
+                 'dummy-amalia','dummy-bagas-nugroho','dummy-salam');

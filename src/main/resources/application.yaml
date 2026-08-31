@@ -2,6 +2,23 @@ spring:
   application:
     name: satudata
 
+  # Membaca berkas `.env` di akar modul ini, kalau ada.
+  #
+  # Tanpa baris ini `.env` HANYA dibaca Docker Compose — dan hanya untuk
+  # container Postgres. Variabel yang ditujukan ke aplikasi (profil aktif,
+  # HRIS_BASE_URL, COGNITO_*) tidak pernah sampai, sehingga berkasnya tampak
+  # mengatur sesuatu padahal separuh isinya diam saja. Itu jebakan yang sudah
+  # memakan waktu: setelan diubah, server di-restart, dan tidak terjadi apa-apa.
+  #
+  # `optional:` wajib. `.env` tidak ikut git, jadi mesin yang belum membuatnya
+  # (CI, kontributor baru, container produksi yang memakai variabel lingkungan
+  # sungguhan) harus tetap bisa start.
+  #
+  # `[.properties]` memberi tahu Spring cara membaca berkas tanpa ekstensi:
+  # satu `KUNCI=nilai` per baris, `#` sebagai komentar — persis bentuk `.env`.
+  config:
+    import: optional:file:.env[.properties]
+
   profiles:
     active: ${spring_profiles_active:dev}
 
@@ -29,6 +46,17 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
     drop-first: false
+    # Context WAJIB disebut, dan bawaannya sengaja `prod`.
+    #
+    # Aturan Liquibase yang mudah menjebak: changeset tanpa context selalu
+    # jalan, DAN kalau saat dijalankan tidak ada context yang disebut sama
+    # sekali, SELURUH changeset jalan -- termasuk yang bertanda `dev`. Artinya
+    # menandai data contoh saja tidak cukup; tanpa baris ini pagarnya diam
+    # tidak berfungsi, dan tidak ada galat yang memberi tahu.
+    #
+    # Bawaan `prod` dipilih supaya lingkungan yang lupa menyetelnya jatuh ke
+    # sisi yang aman: data contoh tidak ikut. Profil dev menimpanya.
+    contexts: ${LIQUIBASE_CONTEXTS:prod}
 
   jackson:
     time-zone: UTC
@@ -36,6 +64,13 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
+      # Batas SELURUH permintaan, bukan per berkas. Wajib disetel sejak satu
+      # dataset boleh memuat beberapa berkas: bawaan Spring untuk nilai ini juga
+      # 10MB, sehingga unggahan tiga berkas @5MB akan ditolak container sebelum
+      # kode aplikasi sempat berjalan — dan galatnya tidak menyebut sebab yang
+      # sesungguhnya. Angkanya sejalan dengan MAX_TOTAL_BYTES di
+      # DatasetUploadService; ubah keduanya bersamaan.
+      max-request-size: 40MB
 
   http:
     clients:
@@ -106,20 +141,6 @@ hris:
   base-url: ${HRIS_BASE_URL:https://hris-dev.api.zcode.id/api/v1}
 
 satudata:
-  api-key:
-    # Rahasia untuk mengenkripsi nilai API key (AES-256-GCM), supaya tombol
-    # "Tampilkan" di Dasbor Akun bisa dilayani.
-    #
-    # SENGAJA TIDAK PUNYA NILAI BAWAAN. Rahasia yang menempel di berkas
-    # ter-commit sama saja dengan tidak mengenkripsi apa pun — siapa pun yang
-    # bisa membaca repo langsung bisa mendekripsi seluruh kunci. Kalau kosong,
-    # aplikasi menolak start (lihat ApiKeyCipher#init).
-    #
-    # Nilai untuk pengembangan lokal ada di application-dev.yaml.
-    #
-    # ⚠️ Mengganti rahasia ini membuat SELURUH kunci lama tidak bisa didekripsi
-    # lagi. Rotasi berarti pengguna harus membuat kunci baru.
-    encryption-secret: ${APIKEY_ENCRYPTION_SECRET:}
   storage:
     # LOCAL atau S3. Setel STORAGE_PROVIDER=LOCAL untuk bekerja tanpa jaringan.
     provider: ${STORAGE_PROVIDER:S3}
