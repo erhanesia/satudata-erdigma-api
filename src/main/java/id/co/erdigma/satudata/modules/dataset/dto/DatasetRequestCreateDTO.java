@@ -54,7 +54,7 @@ public class DatasetRequestCreateDTO {
             + "Diisi berarti hanya pemilik posisi tersebut yang bisa membuka, membaca isi "
             + "tabelnya, dan mengunduhnya; yang lain mendapat 403. ADMIN dan pengunggahnya "
             + "sendiri selalu bisa.", example = "[\"Direksi\", \"General Manager\", \"Manager\"]")
-    private List<String> positions;
+    private List<@jakarta.validation.Valid AccessRuleDTO> accessRules;
 
     @Schema(description = "Keterangan tiap berkas yang diunggah — nama versi manusia dan jenisnya. "
             + "Urutannya HARUS sama dengan urutan bagian multipart `files`, dan jumlahnya harus "

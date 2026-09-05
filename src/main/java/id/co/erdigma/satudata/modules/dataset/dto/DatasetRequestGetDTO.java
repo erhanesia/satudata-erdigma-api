@@ -31,12 +31,12 @@ public class DatasetRequestGetDTO {
             + "Daftar lengkapnya dari GET /api/v1/divisions.")
     private List<String> divisions;
 
-    @Schema(description = "Saring per tag posisi yang boleh melihat. Daftar nilainya dari "
-            + "GET /api/v1/positions.\n\n"
+    @Schema(description = "Saring per jenjang jabatan yang boleh melihat. Daftar nilainya dari "
+            + "GET /api/v1/job-levels.\n\n"
             + "Ini penyaring tampilan, BUKAN pembatas akses. Pembatasannya berjalan sendiri "
             + "dan tidak bisa dimatikan lewat parameter apa pun: dataset yang tidak boleh "
             + "Anda lihat tidak akan muncul di sini, apa pun isian penyaringnya.")
-    private List<String> positions;
+    private List<String> jobLevels;
 
     @Schema(description = "Urutan hasil.", allowableValues = { "relevance", "downloads",
             "updated", "created" }, defaultValue = "relevance")

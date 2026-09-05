@@ -84,21 +84,29 @@ public class Dataset {
     private List<Format> formats = new ArrayList<>();
 
     /**
-     * Posisi jabatan yang boleh melihat dataset ini.
+     * Aturan "siapa boleh melihat dataset ini".
      *
-     * BELUM DITEGAKKAN di endpoint mana pun — baru disimpan dan ditampilkan.
-     * Lihat catatan lengkapnya di changeset 00026.
+     * Kosong berarti TERBUKA untuk seluruh karyawan. Portal ini katalog data
+     * bersama; membatasi adalah pengecualian yang harus dinyatakan, bukan
+     * keadaan bawaan.
+     *
+     * Berisi aturan berarti dataset terlihat bila SALAH SATU aturannya cocok.
+     * Ketiga jenisnya berdiri sejajar — lihat {@link AccessRule}.
+     *
+     * Sebelum changeset 47 ini berupa {@code List<String> positions} yang
+     * menampung sembilan label karangan dari berkas desain. Label itu mencampur
+     * senioritas dan peran fungsional, dua hal yang di HRIS justru dipisah
+     * tegas, sehingga tidak pernah bisa diisi otomatis dari sana.
      *
      * {@code @BatchSize} penting di sini: tanpa itu, menampilkan 50 dataset di
      * panel admin memicu 50 query tambahan, satu per baris. Dengan itu Hibernate
      * mengambilnya sekaligus lewat beberapa query IN.
      */
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "dataset_position_access", joinColumns = @JoinColumn(name = "dataset_id"))
-    @Column(name = "position", nullable = false, length = 60)
+    @CollectionTable(name = "dataset_access_rule", joinColumns = @JoinColumn(name = "dataset_id"))
     @BatchSize(size = 50)
-    @OrderBy("position ASC")
-    private List<String> positions = new ArrayList<>();
+    @OrderBy("ruleType ASC, ruleValue ASC")
+    private List<AccessRule> accessRules = new ArrayList<>();
 
     @OneToMany(mappedBy = "dataset", fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")

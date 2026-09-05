@@ -63,18 +63,48 @@ public class User {
     private String jobLevel;
 
     /**
-     * Posisi yang dipakai memutuskan dataset mana boleh dilihat.
+     * Pengenal posisi milik HRIS, dipakai mencocokkan aturan akses bertipe
+     * POSITION.
      *
-     * MILIK PORTAL INI, bukan salinan kolom HRIS. Sembilan nilainya ada di
-     * {@link id.co.erdigma.satudata.enums.JobPosition}; HRIS sendiri menyimpan
-     * dua sumbu berbeda ({@code job_level} yang enum dan {@code position} yang
-     * teks bebas), dan tak satu pun cocok satu-satu dengan daftar itu.
+     * UUID, bukan nama, meski {@code position} di atas sudah menyimpan namanya.
+     * Tabel posisi HRIS memuat salah ketik seperti "HO Customer Acquisiton" dan
+     * "Sales & Complience Manager"; begitu diperbaiki di sana, pembatasan
+     * berbasis nama putus tanpa galat apa pun — dataset sekadar berhenti
+     * terlihat oleh orang yang seharusnya berhak. UUID tidak ikut berubah saat
+     * namanya dirapikan.
      *
-     * Kosong berarti pemiliknya hanya bisa melihat dataset yang tidak bertag —
-     * gagal ke arah yang aman. Lihat changeset 00032.
+     * Kosong berarti pemiliknya tidak pernah cocok dengan aturan POSITION mana
+     * pun. Gagal ke arah menutup, bukan membuka.
      */
-    @Column(name = "access_position", length = 60)
-    private String accessPosition;
+    @Column(name = "hris_position_id")
+    private UUID hrisPositionId;
+
+    /**
+     * Pengenal karyawan milik HRIS, dipakai mencocokkan aturan akses bertipe
+     * EMPLOYEE — yaitu ketika sebuah dataset menunjuk orang tertentu secara
+     * langsung, tanpa memedulikan jabatannya.
+     *
+     * Berbeda dari {@code cognitoId}, yang menyatakan identitas untuk masuk.
+     * Satu orang bisa saja berganti akun Cognito tanpa berganti data
+     * kekaryawanan, dan aturan akses seharusnya mengikuti orangnya.
+     */
+    @Column(name = "hris_employee_id")
+    private UUID hrisEmployeeId;
+
+    /**
+     * Letak foto profil di S3, apa adanya seperti dikirim HRIS — mis.
+     * {@code /hris/dev/profile-image/230425-0808.webp}.
+     *
+     * Path, bukan URL. Ruas {@code dev} di tengahnya berganti jadi {@code prod}
+     * di produksi, dan nama bucket maupun region-nya bisa berubah kalau
+     * infrastrukturnya dipindah; menyimpan URL utuh berarti setiap baris ikut
+     * memuat pengetahuan itu dan harus ditulis ulang massal saat berubah.
+     *
+     * Kosong berarti karyawannya belum pernah mengunggah foto. Antarmuka
+     * menampilkan inisial namanya sebagai ganti, seperti sebelum kolom ini ada.
+     */
+    @Column(name = "profile_image", length = 255)
+    private String profileImage;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "division_id", nullable = true)

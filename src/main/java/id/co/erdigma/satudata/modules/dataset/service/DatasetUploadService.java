@@ -16,11 +16,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.AuditAction;
-import id.co.erdigma.satudata.enums.JobPosition;
 import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestCreateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
+import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetCollection;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
@@ -79,6 +79,9 @@ public class DatasetUploadService {
 
     @Autowired
     private DatasetRepository datasetRepository;
+
+    @Autowired
+    private AccessRuleValidator accessRuleValidator;
     @Autowired
     private TopicRepository topicRepository;
     @Autowired
@@ -126,7 +129,7 @@ public class DatasetUploadService {
         dataset.setCoverage(trimToNull(body.getCoverage()));
         dataset.setCollection(resolveCollection(body.getCollectionSlug()));
         dataset.setTopics(resolveTopics(body.getTopics()));
-        dataset.setPositions(resolvePositions(body.getPositions()));
+        dataset.setAccessRules(accessRuleValidator.validate(body.getAccessRules()));
         // Lencana format menyusul berkas yang benar-benar masuk, bukan
         // ditetapkan CSV di depan seperti dulu.
         dataset.setFormats(uploads.stream().map(UploadedFile::format).distinct().toList());
@@ -397,27 +400,6 @@ public class DatasetUploadService {
      * kecuali ADMIN dan pengunggahnya — tanpa satu pun galat yang menunjukkan
      * sebabnya.
      */
-    private List<String> resolvePositions(List<String> requested) {
-        List<String> result = new ArrayList<>();
-        if (requested == null || requested.isEmpty()) {
-            return result;
-        }
-        for (String label : requested) {
-            String cleaned = trimToNull(label);
-            if (cleaned == null) {
-                continue;
-            }
-            JobPosition position = JobPosition.fromLabel(cleaned);
-            if (position == null) {
-                throw new BusinessValidationException(
-                        "Posisi \"" + cleaned + "\" tidak dikenal. Lihat GET /api/v1/positions.");
-            }
-            if (!result.contains(position.getLabel())) {
-                result.add(position.getLabel());
-            }
-        }
-        return result;
-    }
 
     /**
      * Kolom {@code file_size} masih bertipe teks, mengikuti desain. Ini utang

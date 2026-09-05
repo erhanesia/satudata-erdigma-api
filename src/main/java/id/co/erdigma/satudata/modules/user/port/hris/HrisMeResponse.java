@@ -30,8 +30,19 @@ public class HrisMeResponse {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Employee {
+        /**
+         * Pengenal karyawan di HRIS, dipakai mencocokkan aturan akses bertipe
+         * EMPLOYEE. Sudah selalu dikirim HRIS; sebelum changeset 48 hanya tidak
+         * pernah dibaca.
+         */
+        private UUID id;
         private String name;
         private String jobLevel;
+        /**
+         * Letak foto di S3, mis. {@code /hris/dev/profile-image/230425-0808.webp}.
+         * Sudah selalu dikirim HRIS; sebelum changeset 49 hanya tidak dibaca.
+         */
+        private String profileImage;
         private Position position;
         /**
          * Unit kerja orang ini, dipetakan ke {@code division} lewat
@@ -54,6 +65,13 @@ public class HrisMeResponse {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Position {
+        /**
+         * Dipakai mencocokkan aturan akses bertipe POSITION. Namanya ikut dibaca
+         * untuk ditampilkan, tetapi yang dicocokkan id-nya — nama posisi di HRIS
+         * memuat salah ketik yang suatu saat diperbaiki, dan pencocokan berbasis
+         * nama akan putus diam-diam begitu itu terjadi.
+         */
+        private UUID id;
         private String name;
     }
 

@@ -31,7 +31,7 @@ public class DatasetResponse {
      * membuka, membaca isi tabel, dan mengunduhnya. Aturannya di
      * {@code DatasetAccessGuard}.
      */
-    private List<String> positions;
+    private List<AccessRuleDTO> accessRules;
     private String coverage;
     private String notes;
     private String disclaimer;

@@ -30,7 +30,7 @@ public class DatasetResponseLite {
      * Posisi jabatan yang boleh melihat dataset ini — kolom "Akses posisi" di
      * panel admin. Kosong berarti terbuka untuk seluruh karyawan.
      */
-    private List<String> positions;
+    private List<AccessRuleDTO> accessRules;
 
     /**
      * Berkas milik dataset ini. Ikut di daftar karena panel admin menampilkan
