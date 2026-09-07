@@ -35,10 +35,13 @@ public class AccessRuleDTO {
     @Schema(description = """
             Isinya bergantung `ruleType`:
 
-            - `JOB_LEVEL` — nama enum job level HRIS, mis. `SENIOR_MANAGER`.
-              Ambil daftarnya dari `GET /api/v1/job-levels`.
+            - `JOB_LEVEL` — **label** jenjang jabatan HRIS, mis. `Senior Manager`.
+              Bukan nama enumnya: `SENIOR_MANAGER` akan ditolak. Yang tersimpan di
+              `users.job_level` memang bentuk labelnya, karena hris-api memasang
+              `@JsonValue` pada label itu. Ambil daftarnya dari
+              `GET /api/v1/job-levels`.
             - `POSITION` — UUID posisi HRIS. Ambil dari `GET /api/v1/positions`.
             - `EMPLOYEE` — UUID karyawan HRIS. Ambil dari `GET /api/v1/employees`.
-            """, example = "SENIOR_MANAGER")
+            """, example = "Senior Manager")
     private String ruleValue;
 }

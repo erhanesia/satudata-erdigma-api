@@ -11,7 +11,8 @@ package id.co.erdigma.satudata.enums;
  * Isi {@code rule_value} berbeda per jenis, dan itu disengaja:
  *
  * <ul>
- *   <li>{@link #JOB_LEVEL} — nama enum job level HRIS, mis. {@code SENIOR_MANAGER}.
+ *   <li>{@link #JOB_LEVEL} — label jenjang jabatan HRIS, mis. {@code Senior Manager}
+ *       — bukan nama enumnya, {@code SENIOR_MANAGER} akan ditolak.
  *       Dipakai apa adanya karena enum itu ada di KODE hris-api, bukan di tabel,
  *       sehingga tidak bisa berubah tanpa deploy ulang HRIS.</li>
  *   <li>{@link #POSITION} — UUID posisi milik HRIS, bukan namanya. Tabel posisi
