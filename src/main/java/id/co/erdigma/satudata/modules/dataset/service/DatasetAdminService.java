@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.AuditAction;
-import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
 import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;

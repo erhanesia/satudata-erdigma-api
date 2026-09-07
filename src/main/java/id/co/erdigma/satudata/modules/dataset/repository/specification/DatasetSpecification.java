@@ -16,7 +16,6 @@ import id.co.erdigma.satudata.modules.dataset.entity.Topic;
 import id.co.erdigma.satudata.modules.division.entity.Division;
 
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
