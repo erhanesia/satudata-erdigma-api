@@ -51,14 +51,6 @@ public class DatasetSpecification {
     }
 
     /**
-     * Menyaring menurut tag posisi.
-     *
-     * Wajib dikerjakan di database, bukan di sisi front-end. Begitu daftarnya
-     * berhalaman, menyaring hasil satu halaman menghasilkan layar yang
-     * membantah dirinya sendiri: tabel menampilkan tiga baris sementara kakinya
-     * menyebut dua puluh, dan halaman berikutnya melompati baris yang cocok.
-     */
-    /**
      * Menyaring daftar berdasarkan jenjang jabatan yang boleh melihat.
      *
      * PENYARING TAMPILAN, bukan pembatas akses. Pembatasannya dipasang terpisah
@@ -69,6 +61,11 @@ public class DatasetSpecification {
      * UUID, dan menyaring lewat UUID di parameter URL bukan sesuatu yang bisa
      * diketik manusia — pemilihnya di panel admin pun memakai daftar jenjang
      * yang pendek, bukan ratusan posisi.
+     *
+     * Wajib dikerjakan di database, bukan di sisi front-end. Begitu daftarnya
+     * berhalaman, menyaring hasil satu halaman menghasilkan layar yang
+     * membantah dirinya sendiri: tabel menampilkan tiga baris sementara kakinya
+     * menyebut dua puluh, dan halaman berikutnya melompati baris yang cocok.
      */
     public static Specification<Dataset> hasJobLevelRuleIn(List<String> jobLevels) {
         return (root, query, cb) -> {
