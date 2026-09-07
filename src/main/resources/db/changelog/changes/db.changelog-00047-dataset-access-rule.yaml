@@ -44,12 +44,19 @@
 # ---------------------------------------------------------------------------
 # Isi kolomnya
 #
-#   rule_type = JOB_LEVEL  ->  rule_value = nama enum HRIS, mis. SENIOR_MANAGER
+#   rule_type = JOB_LEVEL  ->  rule_value = LABEL jenjang, mis. "Senior Manager"
 #   rule_type = POSITION   ->  rule_value = UUID posisi milik HRIS
 #   rule_type = EMPLOYEE   ->  rule_value = UUID karyawan milik HRIS
 #
-# Lebar 60 tetap cukup: UUID hanya 36 karakter, dan nama enum terpanjang
-# DIREKTUR_UTAMA hanya 14.
+# Perhatikan JOB_LEVEL menyimpan LABEL, bukan nama enumnya. "SENIOR_MANAGER"
+# tidak akan pernah cocok dengan siapa pun: HrisJobLevel.fromLabel()
+# membandingkan dengan label, dan users.job_level pun berisi bentuk label karena
+# hris-api memasang @JsonValue di sana. Penting saat memperbaiki data lewat SQL
+# langsung, karena baris yang salah bentuk tidak menimbulkan galat apa pun --
+# ia sekadar tidak pernah cocok.
+#
+# Lebar 60 tetap cukup: UUID hanya 36 karakter, dan label terpanjang
+# ("General Manager") hanya 15.
 #
 # Nilainya sengaja UUID, bukan nama. Tabel posisi HRIS memuat salah ketik seperti
 # "HO Customer Acquisiton" dan "Sales & Complience"; begitu diperbaiki di sana,
