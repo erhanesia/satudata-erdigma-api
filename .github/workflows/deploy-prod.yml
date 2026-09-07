@@ -27,7 +27,14 @@ permissions:
 env:
   AWS_REGION: ap-southeast-1
   ECR_REPOSITORY: satudata-api
-  INSTANCE_NAME: satudata-prod
+  # Box tujuan dicari lewat tag PENANDA, bukan tag Name.
+  #
+  # Alasannya: satudata untuk sementara menumpang di box career-prod sementara
+  # kuota vCPU akun belum naik. Dengan penanda ini, pemindahan ke box t4g
+  # sendiri nanti cukup memindahkan tag-nya — workflow ini, dan kondisi IAM
+  # yang menjaganya, tidak perlu disentuh sama sekali.
+  INSTANCE_TAG_KEY: SatudataHost
+  INSTANCE_TAG_VALUE: 'yes'
 
 jobs:
   test:
@@ -107,7 +114,7 @@ jobs:
           CMD=$(aws ssm send-command \
             --region "$AWS_REGION" \
             --document-name AWS-RunShellScript \
-            --targets "Key=tag:Name,Values=${INSTANCE_NAME}" \
+            --targets "Key=tag:${INSTANCE_TAG_KEY},Values=${INSTANCE_TAG_VALUE}" \
             --comment "deploy satudata-api ${{ steps.meta.outputs.sha }}" \
             --timeout-seconds 900 \
             --parameters 'commands=["/usr/local/bin/satudata-deploy.sh satudata-api"]' \
