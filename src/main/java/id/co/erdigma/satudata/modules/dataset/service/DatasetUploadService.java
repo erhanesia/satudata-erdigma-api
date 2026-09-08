@@ -16,6 +16,7 @@ import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestCreateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
 import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
+import id.co.erdigma.satudata.modules.dataset.helper.RichTextSanitizer;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetCollection;
 import id.co.erdigma.satudata.modules.dataset.entity.Topic;
@@ -59,6 +60,8 @@ public class DatasetUploadService {
 
     @Autowired
     private AccessRuleValidator accessRuleValidator;
+    @Autowired
+    private RichTextSanitizer richTextSanitizer;
     @Autowired
     private TopicRepository topicRepository;
     @Autowired
@@ -107,7 +110,10 @@ public class DatasetUploadService {
         // Dicatat sekali saat unggah dan tidak pernah diubah setelahnya: ini
         // jejak siapa yang bertanggung jawab, bukan penanda pemilik saat ini.
         dataset.setUploadedBy(user);
-        dataset.setNotes(trimToNull(body.getNotes()));
+        // Deskripsi ditulis lewat editor teks kaya, jadi isinya HTML. Yang
+        // dibersihkan yang masuk, bukan yang keluar: sekali tersimpan kotor, ia
+        // akan digambar di halaman setiap orang yang berhak membuka dataset ini.
+        dataset.setNotes(trimToNull(richTextSanitizer.sanitize(body.getNotes())));
         dataset.setDisclaimer(trimToNull(body.getDisclaimer()));
         dataset.setCoverage(trimToNull(body.getCoverage()));
         dataset.setCollection(resolveCollection(body.getCollectionSlug()));

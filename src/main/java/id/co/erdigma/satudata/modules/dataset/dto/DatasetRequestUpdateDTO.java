@@ -51,8 +51,11 @@ public class DatasetRequestUpdateDTO {
             example = "Penjualan Furnitur Ritel 2025", requiredMode = Schema.RequiredMode.REQUIRED)
     private String title;
 
-    @Schema(description = "Deskripsi dataset. Kirim string kosong untuk mengosongkannya; "
-            + "hilangkan ruasnya kalau tidak ingin mengubahnya.")
+    @Schema(description = "Deskripsi dataset, berupa **HTML terbatas** dari editor teks kaya. "
+            + "Yang dipertahankan hanya p, br, strong, em, b, i, u, s, ul, ol, li, blockquote, "
+            + "h2, dan a[href]; selebihnya DIBUANG saat disimpan, termasuk atribut style, "
+            + "gambar, dan penangan kejadian. Teks polos tetap diterima apa adanya. Kirim string "
+            + "kosong untuk mengosongkannya; hilangkan ruasnya kalau tidak ingin mengubahnya.")
     private String notes;
 
     @Schema(description = "Peringatan yang tampil sebelum unduhan. Kirim string kosong untuk "

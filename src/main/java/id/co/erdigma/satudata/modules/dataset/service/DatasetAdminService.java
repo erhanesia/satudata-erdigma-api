@@ -23,6 +23,7 @@ import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
 import id.co.erdigma.satudata.modules.dataset.entity.AccessRule;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
+import id.co.erdigma.satudata.modules.dataset.helper.RichTextSanitizer;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestUpdateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetCollection;
@@ -64,6 +65,8 @@ public class DatasetAdminService {
     private AuditLogService auditLogService;
     @Autowired
     private AccessRuleValidator accessRuleValidator;
+    @Autowired
+    private RichTextSanitizer richTextSanitizer;
     @Autowired
     private TopicRepository topicRepository;
     @Autowired
@@ -132,9 +135,21 @@ public class DatasetAdminService {
             dataset.setTitle(judulBaru);
         }
 
-        if (body.getNotes() != null && !body.getNotes().equals(dataset.getNotes())) {
-            perubahan.add("deskripsi diperbarui");
-            dataset.setNotes(body.getNotes());
+        /*
+          Dibersihkan LEBIH DULU, baru dibandingkan.
+
+          Kalau urutannya terbalik, badan permintaan yang isinya sama persis
+          dengan yang tersimpan tetapi membawa satu atribut terlarang akan
+          terbaca sebagai perubahan, tercatat di jejak audit sebagai "deskripsi
+          diperbarui", lalu menyimpan isi yang sama. Yang dibandingkan harus
+          yang benar-benar akan disimpan.
+        */
+        if (body.getNotes() != null) {
+            String deskripsiBaru = richTextSanitizer.sanitize(body.getNotes());
+            if (!deskripsiBaru.equals(dataset.getNotes())) {
+                perubahan.add("deskripsi diperbarui");
+                dataset.setNotes(deskripsiBaru);
+            }
         }
         if (body.getDisclaimer() != null && !body.getDisclaimer().equals(dataset.getDisclaimer())) {
             perubahan.add("disclaimer diperbarui");

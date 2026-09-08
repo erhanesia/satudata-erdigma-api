@@ -40,6 +40,7 @@ import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.entity.Format;
 import id.co.erdigma.satudata.modules.dataset.entity.Topic;
 import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
+import id.co.erdigma.satudata.modules.dataset.helper.RichTextSanitizer;
 import id.co.erdigma.satudata.modules.dataset.repository.CollectionRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
@@ -85,6 +86,17 @@ class DatasetUpdateTest {
     private final EntityManager entityManager = mock(EntityManager.class);
     private final AccessRuleValidator accessRuleValidator = new AccessRuleValidator();
 
+    /*
+      Yang sungguhan, bukan mock.
+
+      Pembersih ini tidak punya kebergantungan apa pun, jadi memakainya apa
+      adanya tidak menambah kerumitan. Yang didapat sebagai gantinya: tes
+      penyuntingan di bawah ikut membuktikan bahwa deskripsi yang lolos ke
+      entity memang deskripsi yang SUDAH dibersihkan. Mock akan meloloskan apa
+      pun dan menyembunyikan justru hal itu.
+    */
+    private final RichTextSanitizer richTextSanitizer = new RichTextSanitizer();
+
     private final DatasetAdminService service = new DatasetAdminService();
 
     private Dataset dataset;
@@ -102,6 +114,7 @@ class DatasetUpdateTest {
         ReflectionTestUtils.setField(service, "datasetService", datasetService);
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
         ReflectionTestUtils.setField(service, "accessRuleValidator", accessRuleValidator);
+        ReflectionTestUtils.setField(service, "richTextSanitizer", richTextSanitizer);
 
         dataset = new Dataset();
         dataset.setId(UUID.randomUUID());
@@ -230,6 +243,46 @@ class DatasetUpdateTest {
         service.update(null, "penjualan-furnitur-2025", b, null);
 
         assertThat(dataset.getNotes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("deskripsi dibersihkan sebelum tersimpan")
+    void descriptionIsSanitizedOnTheWayIn() {
+        /*
+         * Yang diuji di sini SAMBUNGANNYA, bukan pembersihnya -- itu sudah
+         * punya kelas tesnya sendiri. Keduanya bisa rusak sendiri-sendiri:
+         * pembersih yang sempurna tetapi tidak dipanggil menyimpan skrip apa
+         * adanya, dan tidak ada satu pun galat yang muncul saat itu terjadi.
+         *
+         * Deskripsi dataset ditulis satu orang dan dibaca banyak orang, jadi
+         * yang lolos ke sini akan berjalan di peramban setiap karyawan yang
+         * membuka dataset itu.
+         */
+        DatasetRequestUpdateDTO b = body("Penjualan Furnitur 2025");
+        b.setNotes("<p>Rekap <strong>penjualan</strong>.</p><script>alert(1)</script>");
+
+        service.update(null, "penjualan-furnitur-2025", b, null);
+
+        assertThat(dataset.getNotes())
+                .contains("<strong>penjualan</strong>")
+                .doesNotContain("<script");
+    }
+
+    @Test
+    @DisplayName("deskripsi yang dibandingkan adalah yang SUDAH dibersihkan")
+    void comparisonUsesTheSanitizedValue() {
+        // Kalau yang dibandingkan isi mentahnya, permintaan yang isinya sama
+        // persis dengan yang tersimpan tetapi membawa satu atribut terlarang
+        // akan tercatat di jejak audit sebagai "deskripsi diperbarui" padahal
+        // tidak ada yang berubah.
+        dataset.setNotes("<p>Deskripsi lama.</p>");
+
+        DatasetRequestUpdateDTO b = body("Penjualan Furnitur 2025");
+        b.setNotes("<p onclick=\"alert(1)\">Deskripsi lama.</p>");
+
+        service.update(null, "penjualan-furnitur-2025", b, null);
+
+        assertThat(auditDetail()).contains("tanpa perubahan");
     }
 
     @Test
