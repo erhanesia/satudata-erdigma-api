@@ -96,7 +96,11 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
             return lokal;
         }
 
-        if (jawaban == null || jawaban.getEmployee() == null) {
+        // Akun ADMIN di HRIS boleh tidak punya baris employee — akun IT
+        // misalnya. Menolaknya berarti orang yang paling berhak mengelola
+        // portal ini justru satu-satunya yang tidak bisa masuk.
+        boolean adminHris = jawaban != null && "ADMIN".equals(jawaban.getRole());
+        if (jawaban == null || (jawaban.getEmployee() == null && !adminHris)) {
             log.warn("Balasan /user/me tanpa data karyawan untuk cognitoId {}", cognitoId);
             return Optional.empty();
         }
@@ -117,27 +121,33 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
         }
 
         HrisMeResponse.Employee employee = jawaban.getEmployee();
-        String position = (employee.getPosition() != null) ? employee.getPosition().getName() : null;
+        String jobLevel = (employee != null) ? employee.getJobLevel() : null;
+        String position = (employee != null && employee.getPosition() != null)
+                ? employee.getPosition().getName()
+                : null;
 
         user.setEmail(jawaban.getEmail());
-        user.setName(employee.getName());
-        user.setJobLevel(employee.getJobLevel());
+        // Tanpa baris employee, HRIS tidak punya nama orang ini. Bagian depan
+        // email jauh lebih berguna di daftar pengguna daripada kolom kosong.
+        user.setName((employee != null) ? employee.getName() : namaDariEmail(jawaban.getEmail()));
+        user.setJobLevel(jobLevel);
         user.setPosition(position);
 
-        // Peran selalu dihitung ulang dari HRIS. Belum ada antarmuka untuk
-        // mengubah peran secara manual, jadi tidak ada yang bisa tertimpa;
-        // begitu ada, keputusan ini harus ditinjau ulang.
+        // Tingkat izin SELALU apa kata HRIS — inilah yang membedakan admin
+        // warisan dari admin tunjukan, jadi override tidak boleh menyentuhnya.
         HrisPermissionLevel level = HrisRoleMapper.permissionLevel(
-                jawaban.getRole(), employee.getJobLevel(), position);
+                jawaban.getRole(), jobLevel, position);
         user.setHrisPermissionLevel(level);
-        user.setRole(HrisRoleMapper.role(level));
 
-        UUID departementId = (employee.getDepartement() != null) ? employee.getDepartement().getId() : null;
+        // Peran efektif: tunjukan manusia menang atas hitungan HRIS.
+        user.setRole(user.getRoleOverride() != null
+                ? user.getRoleOverride()
+                : HrisRoleMapper.role(level));
+
+        UUID departementId = (employee != null && employee.getDepartement() != null)
+                ? employee.getDepartement().getId()
+                : null;
         if (departementId != null) {
-            // Divisi hanya ditimpa kalau padanannya ketemu. Kolom
-            // division.hris_departement_id masih null untuk kedelapan divisi
-            // seed, jadi untuk sementara pengguna baru berdivisi null — itu
-            // sudah nullable di sepanjang MeService dan CurrentUserService.
             divisionRepository.findByHrisDepartementIdAndDeletedAtIsNull(departementId)
                     .ifPresent(user::setDivision);
         }
@@ -148,5 +158,14 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
         user.setUpdatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
+    }
+
+    /** "engineer@erdigma.id" menjadi "engineer". Null-aman. */
+    private static String namaDariEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "Tanpa nama";
+        }
+        int at = email.indexOf('@');
+        return (at > 0) ? email.substring(0, at) : email;
     }
 }
