@@ -44,8 +44,15 @@ public class AccessRule {
     private AccessRuleType ruleType;
 
     /**
-     * Nama enum job level, UUID posisi, atau UUID karyawan — bergantung
-     * {@link #ruleType}. Lihat {@link AccessRuleType} untuk alasannya.
+     * Isinya bergantung {@link #ruleType}: LABEL jenjang jabatan HRIS
+     * (mis. {@code Senior Manager}, bukan {@code SENIOR_MANAGER}), UUID posisi,
+     * atau UUID karyawan.
+     *
+     * Bentuk pastinya beserta alasannya ada di {@link AccessRuleType}, dan
+     * sengaja tidak diulang panjang lebar di sini. Fakta yang sama sempat
+     * tertulis di lima tempat berbeda, dan yang di sini menyimpang jadi "nama
+     * enum" tanpa ada yang menyadarinya — karena tidak ada yang gagal kalau
+     * sebuah kalimat berbohong.
      */
     @Column(name = "rule_value", nullable = false, length = 60)
     private String ruleValue;
