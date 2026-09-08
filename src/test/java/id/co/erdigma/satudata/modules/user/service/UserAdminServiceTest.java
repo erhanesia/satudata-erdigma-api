@@ -1,6 +1,7 @@
 package id.co.erdigma.satudata.modules.user.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Sort;
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.HrisPermissionLevel;
 import id.co.erdigma.satudata.enums.Role;
+import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.modules.user.dto.UserAdminResponse;
 import id.co.erdigma.satudata.repository.UserRepository;
 
@@ -82,6 +84,63 @@ class UserAdminServiceTest {
         assertThat(alpha.getRole()).isEqualTo(Role.ADMIN);
         assertThat(alpha.getHrisPermissionLevel()).isEqualTo(HrisPermissionLevel.STAFF);
         assertThat(beta.getRoleOverride()).isNull();
+    }
+
+    @Test
+    @DisplayName("menunjuk peran menyimpan override beserta jejak siapa dan kapan")
+    void menunjukPeranMenyimpanJejak() {
+        String cognitoPemanggil = simpan("Admin Hris", "adminhris.unik@erdigma.co.id",
+                Role.ADMIN, HrisPermissionLevel.ADMIN, null);
+        String cognitoTarget = simpan("Target Staf", "target.unik@erdigma.co.id",
+                Role.STAFF, HrisPermissionLevel.STAFF, null);
+
+        User pemanggil = userRepository.findByCognitoId(cognitoPemanggil).orElseThrow();
+        User target = userRepository.findByCognitoId(cognitoTarget).orElseThrow();
+
+        var hasil = userAdminService.ubahPeran(pemanggil, target.getId(), Role.ADMIN);
+
+        assertThat(hasil.getRole()).isEqualTo(Role.ADMIN);
+        assertThat(hasil.getRoleOverride()).isEqualTo(Role.ADMIN);
+        assertThat(hasil.getRoleOverrideAt()).isNotNull();
+
+        User tersimpan = userRepository.findByCognitoId(cognitoTarget).orElseThrow();
+        assertThat(tersimpan.getRoleOverrideBy()).isEqualTo(pemanggil.getId());
+        // Tingkat izin HRIS tidak boleh ikut berubah.
+        assertThat(tersimpan.getHrisPermissionLevel()).isEqualTo(HrisPermissionLevel.STAFF);
+    }
+
+    @Test
+    @DisplayName("role null mengembalikan peran mengikuti HRIS dan mengosongkan jejak")
+    void roleNullMengembalikanKeHris() {
+        String cognitoPemanggil = simpan("Admin Hris", "adminhris2.unik@erdigma.co.id",
+                Role.ADMIN, HrisPermissionLevel.ADMIN, null);
+        String cognitoTarget = simpan("Manajer Ditunjuk", "manajer.unik@erdigma.co.id",
+                Role.ADMIN, HrisPermissionLevel.MANAGER, Role.ADMIN);
+
+        User pemanggil = userRepository.findByCognitoId(cognitoPemanggil).orElseThrow();
+        User target = userRepository.findByCognitoId(cognitoTarget).orElseThrow();
+
+        var hasil = userAdminService.ubahPeran(pemanggil, target.getId(), null);
+
+        // MANAGER dipetakan ke PUBLISHER oleh HrisRoleMapper.
+        assertThat(hasil.getRole()).isEqualTo(Role.PUBLISHER);
+        assertThat(hasil.getRoleOverride()).isNull();
+        assertThat(hasil.getRoleOverrideAt()).isNull();
+
+        User tersimpan = userRepository.findByCognitoId(cognitoTarget).orElseThrow();
+        assertThat(tersimpan.getRoleOverrideBy()).isNull();
+    }
+
+    @Test
+    @DisplayName("mengubah peran sendiri ditolak")
+    void ubahPeranSendiriDitolak() {
+        String cognitoId = simpan("Admin Sendiri", "sendiri.unik@erdigma.co.id",
+                Role.ADMIN, HrisPermissionLevel.ADMIN, null);
+        User pemanggil = userRepository.findByCognitoId(cognitoId).orElseThrow();
+
+        assertThatThrownBy(() -> userAdminService.ubahPeran(pemanggil, pemanggil.getId(), Role.STAFF))
+                .isInstanceOf(BusinessValidationException.class)
+                .hasMessageContaining("sendiri");
     }
 
     private String simpan(String nama, String email, Role role,

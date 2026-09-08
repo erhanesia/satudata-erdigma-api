@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +17,8 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import id.co.erdigma.satudata.modules.user.dto.UserRoleUpdateRequest;
 
 @SpringBootTest(properties = {
         "spring.profiles.active=dev",
@@ -46,6 +49,16 @@ class UserAdminAuthorizationTest {
         masuk("ROLE_ADMIN", "ROLE_HRIS_ADMIN");
 
         assertThatCode(() -> controller.index(null, 0, 20)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("admin tunjukan ditolak menunjuk peran orang lain")
+    void adminTunjukanDitolakUbahPeran() {
+        masuk("ROLE_ADMIN");
+
+        assertThatThrownBy(
+                () -> controller.ubahPeran(null, "usr-" + UUID.randomUUID(), new UserRoleUpdateRequest()))
+                .isInstanceOf(AuthorizationDeniedException.class);
     }
 
     private static void masuk(String... authorities) {
