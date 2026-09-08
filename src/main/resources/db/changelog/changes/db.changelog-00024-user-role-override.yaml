@@ -1,0 +1,35 @@
+# Peran yang ditunjuk manusia lewat panel manajemen pengguna.
+#
+# Sebelum ini users.role dihitung ulang dari HRIS setiap penyegaran (ambang 12
+# jam di HrisEmployeeDirectory), sehingga nilai apa pun yang diketik manusia
+# pasti tertimpa. Kolom ini yang menahannya: kalau role_override terisi, ia
+# yang disalin ke users.role di setiap penyegaran.
+#
+# hris_permission_level TIDAK ikut ditahan — nilainya tetap apa kata HRIS, dan
+# itulah yang membedakan admin warisan HRIS (boleh membuka panel ini) dari
+# admin tunjukan (tidak boleh).
+#
+# role_override_by sengaja tanpa foreign key ke users.id: baris pengubah bisa
+# ikut terhapus lunak, dan jejak siapa yang menunjuk lebih berharga daripada
+# integritas rujukan di kolom audit.
+databaseChangeLog:
+  - changeSet:
+      id: "24"
+      author: author
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: role_override, type: VARCHAR(20) }
+              - column: { name: role_override_by, type: UUID }
+              - column: { name: role_override_at, type: TIMESTAMP }
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: role_override
+        - dropColumn:
+            tableName: users
+            columnName: role_override_by
+        - dropColumn:
+            tableName: users
+            columnName: role_override_at
