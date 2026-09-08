@@ -296,6 +296,25 @@ class HrisEmployeeDirectoryTest {
                 .doesNotContain("ROLE_HRIS_ADMIN");
     }
 
+    @Test
+    @DisplayName("admin HRIS yang diturunkan lewat override kehilangan ROLE_HRIS_ADMIN")
+    void adminHrisDiturunkanKehilanganAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        // Arah kebalikan dari adminTunjukanTidakDapatAuthorityKhusus: di sana
+        // hrisPermissionLevel yang bukan ADMIN, di sini role yang diturunkan
+        // override. Inilah yang membuat konjungsi berarti sesuatu — kalau
+        // gerbangnya cuma hrisPermissionLevel == ADMIN, admin yang sudah
+        // diturunkan lewat panel tetap bisa membuka manajemen pengguna.
+        simpanBarisSegar(cognitoId, Role.STAFF, HrisPermissionLevel.ADMIN);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_STAFF")
+                .doesNotContain("ROLE_HRIS_ADMIN");
+    }
+
     /** Baris dengan updatedAt sekarang: masihSegar() memotong panggilan HRIS. */
     private void simpanBarisSegar(String cognitoId, Role role, HrisPermissionLevel level) {
         User baris = new User();

@@ -7,7 +7,13 @@
 #
 # hris_permission_level TIDAK ikut ditahan — nilainya tetap apa kata HRIS, dan
 # itulah yang membedakan admin warisan HRIS (boleh membuka panel ini) dari
-# admin tunjukan (tidak boleh).
+# admin tunjukan (tidak boleh). Tapi "apa kata HRIS" itu tidak seketika:
+# HrisEmployeeDirectory.SEGAR menahan baris lokal selama 12 jam tanpa
+# bertanya lagi ke HRIS, dan kalau hris-api sedang tak terjangkau baris basi
+# itu tetap dipakai selama gangguan berlangsung — bisa jauh lebih lama dari
+# 12 jam. Akun yang baru diturunkan di HRIS tetap membawa ROLE_HRIS_ADMIN
+# sampai barisnya sungguh disegarkan, dan penunjukan apa pun yang sempat ia
+# buat lewat panel ini di jendela itu bertahan permanen.
 #
 # role_override_by sengaja tanpa foreign key ke users.id: baris pengubah bisa
 # ikut terhapus lunak, dan jejak siapa yang menunjuk lebih berharga daripada

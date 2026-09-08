@@ -148,6 +148,13 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
                 ? employee.getDepartement().getId()
                 : null;
         if (departementId != null) {
+            // Divisi hanya ditimpa kalau padanannya ketemu. Kolom
+            // division.hris_departement_id masih null untuk kedelapan divisi
+            // seed, jadi untuk sementara pengguna baru berdivisi null — itu
+            // sudah nullable di sepanjang MeService, CurrentUserService, dan
+            // UserResponse. Efeknya kelihatan langsung di panel manajemen
+            // pengguna: kolom "Divisi" akan tampil "—" untuk semua baris
+            // sampai seed-nya diisi.
             divisionRepository.findByHrisDepartementIdAndDeletedAtIsNull(departementId)
                     .ifPresent(user::setDivision);
         }

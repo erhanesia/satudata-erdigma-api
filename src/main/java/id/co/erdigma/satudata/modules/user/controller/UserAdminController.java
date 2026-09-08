@@ -37,6 +37,20 @@ import lombok.RequiredArgsConstructor;
  * `@PreAuthorize` dipasang di tingkat kelas, bukan per method: seluruh isi
  * controller ini punya syarat akses yang sama, dan menaruhnya sekali membuat
  * tidak ada method baru yang bisa lolos karena anotasinya lupa disalin.
+ *
+ * <p><b>Kunci-mati mungkin terjadi, dan itu disengaja.</b> Larangan mengubah
+ * peran sendiri (lihat {@link UserAdminService#ubahPeran}) hanya mencegah
+ * seseorang mengunci <i>dirinya sendiri</i> — bukan mencegah kunci-mati sama
+ * sekali. Admin A tetap bisa menurunkan admin B (yang tingkat izin HRIS-nya
+ * juga ADMIN) ke STAFF; B kehilangan gerbang panel ini secara permanen, dan
+ * kalau A kelak berhenti jadi admin, tidak tersisa satu pun admin warisan
+ * HRIS yang bisa memulihkannya lewat UI. Menurunkan admin HRIS memang aksi
+ * yang sah — yang tidak ada hanyalah jalan pulih lewat antarmuka. Satu-
+ * satunya pemulihan adalah SQL langsung ke baris yang mau dipulihkan:
+ *
+ * <pre>{@code
+ * UPDATE users SET role='ADMIN', role_override=NULL, role_override_by=NULL, role_override_at=NULL WHERE email='…';
+ * }</pre>
  */
 @RestController
 @RequestMapping("/api/v1/users")
@@ -52,6 +66,11 @@ import lombok.RequiredArgsConstructor;
 
         Peran yang ditunjuk di sini bertahan melewati penyegaran data HRIS. Mengembalikan
         seseorang mengikuti HRIS dilakukan dengan mengirim `role: null`.
+
+        **Efeknya bukan cuma akses ke panel ini.** `DatasetController` sudah menggerbangi
+        penerbitan dataset dengan `hasAnyRole('ADMIN','PUBLISHER')` — jadi menunjuk seseorang
+        PUBLISHER atau ADMIN di sini juga memberinya hak menerbitkan dataset, dan menurunkannya
+        ke STAFF mencabut hak itu juga.
         """)
 public class UserAdminController {
 
@@ -73,8 +92,12 @@ public class UserAdminController {
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        // Endpoint ini cuma bisa dijangkau admin warisan HRIS, jadi ini bukan
+        // menambal lubang keamanan — tapi tanpa jepitan, size=100000 tetap
+        // membangun satu halaman berisi 100 ribu baris.
+        int ukuran = Math.min(size, 100);
         return ResponseEntity.ok(
-                userAdminService.daftar(q, PageRequest.of(page, size, Sort.by("name").ascending())));
+                userAdminService.daftar(q, PageRequest.of(page, ukuran, Sort.by("name").ascending())));
     }
 
     @PatchMapping("/{id}/role")
@@ -84,8 +107,9 @@ public class UserAdminController {
             Kirim `{"role": null}` untuk mengembalikannya mengikuti HRIS — peran akan dihitung
             ulang dari tingkat izin HRIS terakhir yang tercatat, tanpa memanggil hris-api.
 
-            Peran sendiri tidak bisa diubah. Batasan itu yang menjamin selalu tersisa satu admin
-            warisan HRIS yang aktif.
+            Peran sendiri tidak bisa diubah — batasan itu hanya mencegah seseorang mengunci
+            dirinya sendiri, bukan jaminan selalu ada admin warisan HRIS lain yang tersisa. Lihat
+            Javadoc kelas ini untuk kunci-mati yang tetap mungkin dan cara memulihkannya.
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Peran berhasil ditunjuk", useReturnTypeSchema = true),
