@@ -138,9 +138,53 @@ public class DownloadLogService {
         return csv.toString();
     }
 
-    /** Mengutip hanya bila perlu, dan menggandakan tanda kutip di dalamnya. */
+    /**
+     * Karakter yang membuat Excel, LibreOffice, dan Google Sheets memperlakukan
+     * isi sel sebagai RUMUS, bukan teks.
+     *
+     * Tab dan carriage return ikut karena keduanya tidak terlihat mata. Nilai
+     * yang diawali salah satunya bisa lolos pemeriksaan yang hanya mencari empat
+     * karakter pertama, lalu tetap dibaca sebagai rumus setelah spasi awalnya
+     * diabaikan.
+     */
+    private static final String FORMULA_PREFIXES = "=+-@\t\r";
+
+    /**
+     * Menyiapkan satu nilai untuk ditulis ke CSV.
+     *
+     * Dua persoalan berbeda diselesaikan di sini, dan penting untuk tidak
+     * menganggapnya satu.
+     *
+     * <b>Pengutipan CSV</b> menjaga agar koma, tanda kutip, dan baris baru tidak
+     * memecah struktur berkasnya. Ini soal format.
+     *
+     * <b>Netralisasi rumus</b> menjaga agar isi sel tidak dieksekusi aplikasi
+     * spreadsheet. Ini soal keamanan, dan pengutipan CSV TIDAK menolong sama
+     * sekali: Excel melepas kutipnya lebih dulu, baru membaca isinya, sehingga
+     * nilai berkutip pun tetap berakhir sebagai rumus.
+     *
+     * Jalur masuknya nyata. Nama berkas diambil apa adanya dari unggahan di
+     * DatasetUploadService dan hanya diperiksa ekstensinya, lalu ikut tercatat
+     * di kolom file_name tabel ini. Berkas yang namanya diawali tanda sama
+     * dengan akan lolos, dan rumusnya berjalan di komputer admin yang membuka
+     * hasil ekspor, mengirimkan isi sel di sekitarnya: nama, email, dan divisi
+     * seluruh pengunduh.
+     *
+     * Kutip tunggal di depan membuat aplikasi spreadsheet membacanya sebagai
+     * teks. Kutip itu tidak ditampilkan di layar, jadi pengguna yang sah tidak
+     * melihat perbedaan apa pun.
+     *
+     * Berlaku juga untuk kasus tanpa niat jahat. Berkas bernama
+     * "-rekap-2026.csv" tanpa penjagaan ini akan tampil sebagai #NAME? alih-alih
+     * namanya sendiri.
+     */
     private String columns(String value) {
         String content = (value == null) ? "" : value;
+
+        if (!content.isEmpty() && FORMULA_PREFIXES.indexOf(content.charAt(0)) >= 0) {
+            content = "'" + content;
+        }
+
         if (content.indexOf(',') < 0 && content.indexOf('"') < 0 && content.indexOf('\n') < 0) {
             return content;
         }
