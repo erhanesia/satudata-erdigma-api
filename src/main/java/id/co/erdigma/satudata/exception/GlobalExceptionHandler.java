@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -72,5 +73,21 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors()
                 .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    /**
+     * Body permintaan tidak bisa dibaca oleh Jackson — JSON rusak, body kosong,
+     * atau nilai enum yang tidak dikenal (mis. {@code {"role": "SUPERADMIN"}}
+     * di {@code PATCH /api/v1/users/{id}/role}). Tanpa penangan ini galatnya
+     * jatuh ke halaman /error bawaan Spring, bentuk yang berbeda dari
+     * {@code {"error": ...}} yang dipakai seluruh 4xx lain di API ini.
+     *
+     * Pesan galatnya sengaja tetap dan tidak mengutip {@code ex.getMessage()}:
+     * pesan Jackson di baliknya bisa memuat nama kelas Java dan potongan
+     * payload pengirim, dan itu tidak untuk dilihat klien.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Permintaan tidak valid."));
     }
 }

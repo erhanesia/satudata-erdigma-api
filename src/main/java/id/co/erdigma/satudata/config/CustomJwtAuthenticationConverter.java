@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import id.co.erdigma.satudata.entity.User;
+import id.co.erdigma.satudata.enums.HrisPermissionLevel;
+import id.co.erdigma.satudata.enums.Role;
 import id.co.erdigma.satudata.modules.user.port.EmployeeDirectory;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +59,17 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
 
         Set<GrantedAuthority> authorities = new HashSet<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+
+        // Dua tingkat admin. Yang perannya ADMIN karena ditunjuk manusia tetap
+        // memegang ROLE_ADMIN, tetapi hanya yang tingkat izin HRIS-nya juga
+        // ADMIN yang boleh membuka manajemen pengguna — kalau tidak, admin
+        // tunjukan bisa menunjuk admin baru dan gerbang ini tidak berarti apa
+        // pun. Konjungsi, bukan salah satu: admin HRIS yang diturunkan lewat
+        // override ikut kehilangan akses panel.
+        if (user.getRole() == Role.ADMIN
+                && user.getHrisPermissionLevel() == HrisPermissionLevel.ADMIN) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_HRIS_ADMIN"));
+        }
 
         return new JwtAuthenticationToken(jwt, authorities, userId);
     }

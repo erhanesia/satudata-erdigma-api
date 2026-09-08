@@ -177,6 +177,156 @@ class HrisEmployeeDirectoryTest {
         mockServerHolder.server.verify();
     }
 
+    @Test
+    @DisplayName("admin HRIS tanpa baris employee tetap diterima")
+    void adminHrisTanpaEmployeeDiterima() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+
+        mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "email": "engineer@erdigma.id",
+                          "role": "ADMIN",
+                          "employee": null
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<User> hasil = employeeDirectory.findByCognitoId(cognitoId, "token-admin");
+
+        assertThat(hasil).isPresent();
+        assertThat(hasil.get().getRole()).isEqualTo(Role.ADMIN);
+        assertThat(hasil.get().getHrisPermissionLevel()).isEqualTo(HrisPermissionLevel.ADMIN);
+        // Nama jatuh ke bagian depan email karena HRIS tidak punya karyawannya.
+        assertThat(hasil.get().getName()).isEqualTo("engineer");
+        assertThat(hasil.get().getJobLevel()).isNull();
+        mockServerHolder.server.verify();
+    }
+
+    @Test
+    @DisplayName("bukan admin dan tanpa employee tetap ditolak")
+    void bukanAdminTanpaEmployeeDitolak() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+
+        mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "email": "bukan.karyawan@erdigma.co.id",
+                          "role": "USER",
+                          "employee": null
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<User> hasil = employeeDirectory.findByCognitoId(cognitoId, "token-biasa");
+
+        assertThat(hasil).isEmpty();
+        assertThat(userRepository.findByCognitoId(cognitoId)).isEmpty();
+        mockServerHolder.server.verify();
+    }
+
+    @Test
+    @DisplayName("penyegaran HRIS tidak menimpa peran yang di-override")
+    void overrideBertahanLewatPenyegaran() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+
+        User baris = new User();
+        baris.setCognitoId(cognitoId);
+        baris.setEmail("staf@erdigma.co.id");
+        baris.setName("Staf Ditunjuk");
+        baris.setRole(Role.ADMIN);
+        baris.setHrisPermissionLevel(HrisPermissionLevel.STAFF);
+        baris.setRoleOverride(Role.ADMIN);
+        baris.setRoleOverrideAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+        // Basi, supaya penyegaran ke HRIS benar-benar dijalankan.
+        baris.setUpdatedAt(LocalDateTime.now().minusHours(13).truncatedTo(ChronoUnit.MICROS));
+        userRepository.save(baris);
+
+        mockServerHolder.server.expect(requestTo(Matchers.endsWith("/user/me")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "email": "staf@erdigma.co.id",
+                          "role": "USER",
+                          "employee": {
+                            "name": "Staf Ditunjuk",
+                            "jobLevel": "Staff",
+                            "position": {"name": "Data Analyst"}
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<User> hasil = employeeDirectory.findByCognitoId(cognitoId, "token-apa-saja");
+
+        assertThat(hasil).isPresent();
+        // Peran efektif tetap hasil tunjukan manusia...
+        assertThat(hasil.get().getRole()).isEqualTo(Role.ADMIN);
+        // ...sedangkan tingkat izin tetap apa kata HRIS.
+        assertThat(hasil.get().getHrisPermissionLevel()).isEqualTo(HrisPermissionLevel.STAFF);
+        mockServerHolder.server.verify();
+    }
+
+    @Test
+    @DisplayName("admin warisan HRIS mendapat authority ROLE_HRIS_ADMIN")
+    void adminWarisanDapatAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        simpanBarisSegar(cognitoId, Role.ADMIN, HrisPermissionLevel.ADMIN);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_ADMIN", "ROLE_HRIS_ADMIN");
+    }
+
+    @Test
+    @DisplayName("admin tunjukan tidak mendapat ROLE_HRIS_ADMIN")
+    void adminTunjukanTidakDapatAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        simpanBarisSegar(cognitoId, Role.ADMIN, HrisPermissionLevel.MANAGER);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_ADMIN")
+                .doesNotContain("ROLE_HRIS_ADMIN");
+    }
+
+    @Test
+    @DisplayName("admin HRIS yang diturunkan lewat override kehilangan ROLE_HRIS_ADMIN")
+    void adminHrisDiturunkanKehilanganAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        // Arah kebalikan dari adminTunjukanTidakDapatAuthorityKhusus: di sana
+        // hrisPermissionLevel yang bukan ADMIN, di sini role yang diturunkan
+        // override. Inilah yang membuat konjungsi berarti sesuatu — kalau
+        // gerbangnya cuma hrisPermissionLevel == ADMIN, admin yang sudah
+        // diturunkan lewat panel tetap bisa membuka manajemen pengguna.
+        simpanBarisSegar(cognitoId, Role.STAFF, HrisPermissionLevel.ADMIN);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_STAFF")
+                .doesNotContain("ROLE_HRIS_ADMIN");
+    }
+
+    /** Baris dengan updatedAt sekarang: masihSegar() memotong panggilan HRIS. */
+    private void simpanBarisSegar(String cognitoId, Role role, HrisPermissionLevel level) {
+        User baris = new User();
+        baris.setCognitoId(cognitoId);
+        baris.setEmail(cognitoId + "@erdigma.co.id");
+        baris.setName("Uji Authority");
+        baris.setRole(role);
+        baris.setHrisPermissionLevel(level);
+        baris.setUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+        userRepository.save(baris);
+    }
+
     private static Jwt jwtFabrikasi(String cognitoId) {
         Instant sekarang = Instant.now();
         return Jwt.withTokenValue("token-fabrikasi-tidak-perlu-valid")

@@ -94,7 +94,11 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
             return local;
         }
 
-        if (response == null || response.getEmployee() == null) {
+        // Akun ADMIN di HRIS boleh tidak punya baris employee — akun IT
+        // misalnya. Menolaknya berarti orang yang paling berhak mengelola
+        // portal ini justru satu-satunya yang tidak bisa masuk.
+        boolean adminHris = response != null && "ADMIN".equals(response.getRole());
+        if (response == null || (response.getEmployee() == null && !adminHris)) {
             log.warn("Balasan /user/me tanpa data karyawan untuk cognitoId {}", cognitoId);
             return Optional.empty();
         }
@@ -114,37 +118,53 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
             user.setCognitoId(cognitoId);
         }
 
+        // employee boleh null di sini — hanya untuk akun ADMIN HRIS, yang
+        // dilewatkan guard di atas. Setiap pembacaannya di bawah dijaga.
         HrisMeResponse.Employee employee = response.getEmployee();
-        String position = (employee.getPosition() != null) ? employee.getPosition().getName() : null;
+        String jobLevel = (employee != null) ? employee.getJobLevel() : null;
+        String position = (employee != null && employee.getPosition() != null)
+                ? employee.getPosition().getName()
+                : null;
 
         user.setEmail(response.getEmail());
-        user.setName(employee.getName());
-        user.setJobLevel(employee.getJobLevel());
+        // Tanpa baris employee, HRIS tidak punya nama orang ini. Bagian depan
+        // email jauh lebih berguna di daftar pengguna daripada kolom kosong.
+        user.setName((employee != null) ? employee.getName() : namaDariEmail(response.getEmail()));
+        user.setJobLevel(jobLevel);
         user.setPosition(position);
 
         // Ditimpa setiap kali disegarkan, termasuk saat HRIS mengirim null.
         // Karyawan yang menghapus fotonya di HRIS harus ikut kehilangan fotonya
         // di sini — kalau nilai lama dipertahankan, portal ini akan terus
         // menampilkan foto yang sudah sengaja dicabut orangnya.
-        user.setProfileImage(employee.getProfileImage());
+        user.setProfileImage((employee != null) ? employee.getProfileImage() : null);
 
         // Kedua pengenal ini yang dipakai DatasetAccessGuard mencocokkan aturan
         // POSITION dan EMPLOYEE. Namanya sudah disimpan di atas untuk
         // ditampilkan, tetapi pencocokan memakai UUID: nama posisi di HRIS
         // memuat salah ketik yang suatu saat diperbaiki, dan pembatasan berbasis
         // nama akan putus diam-diam begitu itu terjadi.
-        user.setHrisPositionId(employee.getPosition() != null ? employee.getPosition().getId() : null);
-        user.setHrisEmployeeId(employee.getId());
+        //
+        // Akun admin HRIS tanpa baris employee tidak punya keduanya, dan itu
+        // memang benar: orang seperti itu bukan karyawan, jadi tidak ada aturan
+        // akses berbasis posisi atau karyawan yang wajar mencocokkinya.
+        user.setHrisPositionId((employee != null && employee.getPosition() != null)
+                ? employee.getPosition().getId()
+                : null);
+        user.setHrisEmployeeId((employee != null) ? employee.getId() : null);
 
-        // Peran selalu dihitung ulang dari HRIS. Belum ada antarmuka untuk
-        // mengubah peran secara manual, jadi tidak ada yang bisa tertimpa;
-        // begitu ada, keputusan ini harus ditinjau ulang.
+        // Tingkat izin SELALU apa kata HRIS — inilah yang membedakan admin
+        // warisan dari admin tunjukan, jadi override tidak boleh menyentuhnya.
         HrisPermissionLevel level = HrisRoleMapper.permissionLevel(
-                response.getRole(), employee.getJobLevel(), position);
+                response.getRole(), jobLevel, position);
         user.setHrisPermissionLevel(level);
-        user.setRole(HrisRoleMapper.role(level));
 
-        UUID teamId = (employee.getTeam() != null) ? employee.getTeam().getId() : null;
+        // Peran efektif: tunjukan manusia menang atas hitungan HRIS.
+        user.setRole(user.getRoleOverride() != null
+                ? user.getRoleOverride()
+                : HrisRoleMapper.role(level));
+
+        UUID teamId = (employee != null && employee.getTeam() != null) ? employee.getTeam().getId() : null;
         if (teamId != null) {
             // Divisi hanya ditimpa kalau padanannya ketemu, sehingga divisi yang
             // sudah disetel tangan tidak hilang gara-gara satu team baru di HRIS
@@ -166,5 +186,14 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
         user.setUpdatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
+    }
+
+    /** "engineer@erdigma.id" menjadi "engineer". Null-aman. */
+    private static String namaDariEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "Tanpa nama";
+        }
+        int at = email.indexOf('@');
+        return (at > 0) ? email.substring(0, at) : email;
     }
 }

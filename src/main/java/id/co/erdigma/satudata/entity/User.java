@@ -59,6 +59,21 @@ public class User {
     @Column(name = "hris_permission_level")
     private HrisPermissionLevel hrisPermissionLevel;
 
+    /**
+     * Peran yang ditunjuk manusia lewat panel manajemen pengguna. Null berarti
+     * baris ini mengikuti HRIS sepenuhnya.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role_override")
+    private Role roleOverride;
+
+    /** Id pengguna yang menunjuk. Tanpa foreign key — lihat changeset 00024. */
+    @Column(name = "role_override_by")
+    private UUID roleOverrideBy;
+
+    @Column(name = "role_override_at")
+    private LocalDateTime roleOverrideAt;
+
     /** Bahan mentah asal HRIS menurunkan tingkat izin, mis. "Manager". */
     private String jobLevel;
 
