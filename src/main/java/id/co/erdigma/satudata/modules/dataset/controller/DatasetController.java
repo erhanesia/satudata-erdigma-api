@@ -28,6 +28,7 @@ import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.IdPrefix;
 import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetAccessRuleUpdateDTO;
+import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestUpdateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestCreateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestGetDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
@@ -206,6 +207,38 @@ public class DatasetController {
                     "Total kunjungan" tidak naik setiap kali admin menengok datanya sendiri.
                     """, example = "true") @RequestParam(defaultValue = "true") boolean recordView) {
         return ResponseEntity.ok(datasetService.getBySlug(user, slug, recordView));
+    }
+
+    @PatchMapping("/{slug}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Menyunting dataset", description = """
+            Mengubah keterangan dataset yang sudah terbit: judul, deskripsi, disclaimer, cakupan,
+            topik, koleksi, dan aturan akses.
+
+            **Slug TIDAK ikut berubah** meski judulnya diganti. Slug dipakai orang membagikan
+            tautan, dan mengubahnya mematikan setiap tautan yang sudah beredar. Akibatnya slug bisa
+            terlihat sedikit ketinggalan dari judulnya, dan itu pertukaran yang disengaja.
+
+            **Divisi dan berkas juga tidak bisa diubah di sini.** Memindahkan dataset antar divisi
+            mengubah siapa yang bertanggung jawab atasnya; mengganti berkas punya jalurnya sendiri
+            di `POST /{slug}/reimport`.
+
+            Ruas keterangan yang **dihilangkan** berarti "jangan diubah"; string **kosong** berarti
+            "kosongkan". `accessRules` dikecualikan dan wajib disertakan — ruas keamanan yang lupa
+            dikirim tidak boleh berakibat sama dengan permintaan yang sengaja membuka.
+
+            Menulis jejak audit yang menyebut apa saja yang berubah, bukan sekadar "disunting".
+            """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Dataset tersimpan", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "400", description = "Isian tidak sah", content = @Content(schema = @Schema(type = "object", properties = @StringToClassMapItem(key = "error", value = String.class)))),
+            @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Slug tidak dikenal", content = @Content)
+    })
+    public ResponseEntity<DatasetResponse> update(@CurrentUser User user,
+            @Parameter(description = "Slug dataset.", example = "penjualan-bulanan", required = true) @PathVariable String slug,
+            @Valid @RequestBody DatasetRequestUpdateDTO body) {
+        return ResponseEntity.ok(datasetAdminService.update(user, slug, body));
     }
 
     @PatchMapping("/{slug}/access-rules")
