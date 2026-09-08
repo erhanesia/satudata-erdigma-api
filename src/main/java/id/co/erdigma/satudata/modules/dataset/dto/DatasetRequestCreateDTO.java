@@ -32,7 +32,11 @@ public class DatasetRequestCreateDTO {
             + "Setelah terbit, slug tidak bisa diubah karena sudah jadi tautan di laporan orang.", example = "penjualan-furnitur-2025")
     private String slug;
 
-    @Schema(description = "Penjelasan isi dataset dan cara membacanya.", example = "Transaksi penjualan furnitur ritel sepanjang 2025 per pesanan.")
+    @Schema(description = "Penjelasan isi dataset dan cara membacanya, berupa **HTML terbatas** "
+            + "dari editor teks kaya. Yang dipertahankan hanya p, br, strong, em, b, i, u, s, ul, "
+            + "ol, li, blockquote, h2, dan a[href]; selebihnya DIBUANG saat disimpan, termasuk "
+            + "atribut style, gambar, dan penangan kejadian. Teks polos tetap diterima apa adanya.",
+            example = "<p>Transaksi penjualan furnitur ritel sepanjang 2025 per pesanan.</p>")
     private String notes;
 
     @Schema(description = "Hal yang harus diketahui pembaca agar datanya tidak salah "
@@ -79,7 +83,7 @@ public class DatasetRequestCreateDTO {
      * lebih berbahaya daripada penolakan.
      */
     @Data
-    public static class FileMeta {
+    public static class FileMeta implements FileMetaView {
 
         @Size(max = 255, message = "Nama file maksimal 255 karakter")
         @Schema(description = "Nama berkas versi manusia.", example = "Kamus Kolom")

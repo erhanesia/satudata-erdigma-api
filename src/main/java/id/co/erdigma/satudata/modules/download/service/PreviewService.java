@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -47,10 +49,14 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li><b>PDF</b> dialirkan apa adanya dan digambar peramban sendiri. Tampilan
  *       persis seperti aslinya.</li>
- *   <li><b>DOCX</b> tidak bisa digambar peramban mana pun, jadi yang dikirim
- *       adalah teks paragrafnya. Tata letak, tabel, dan gambar TIDAK ikut —
- *       itu keterbatasan nyata, dan antarmuka menyebutkannya alih-alih membiarkan
- *       orang mengira dokumennya memang sesederhana itu.</li>
+ *   <li><b>DOCX</b> ikut dialirkan apa adanya. Peramban memang tidak bisa
+ *       menggambarnya sendiri, tetapi front-end kini menguraikannya di sisi klien
+ *       sehingga tabel, gambar, dan tata letaknya ikut tampil. Yang dibutuhkan
+ *       dari sini cuma byte-nya.</li>
+ *   <li><b>Teks paragraf DOCX</b> tetap tersedia lewat {@code previewText}. Ia
+ *       tidak lagi dipakai layar pratinjau, tetapi tetap berguna bagi pemanggil
+ *       yang cuma butuh isinya sebagai teks — dan mencabutnya berarti memutus
+ *       endpoint publik demi perubahan yang tidak menuntutnya.</li>
  *   <li><b>CSV dan XLSX</b> tidak lewat sini sama sekali. Isinya sudah menjadi
  *       tabel dataset, dan tabel itu jauh lebih berguna daripada teks
  *       mentahnya.</li>
@@ -75,16 +81,33 @@ public class PreviewService {
     @Autowired
     private FileStorage fileStorage;
 
-    /** Berkas biner yang digambar peramban sendiri — untuk sekarang hanya PDF. */
+    /**
+     * Berkas yang byte-nya dialirkan utuh untuk digambar di halaman.
+     *
+     * Daftarnya SENGAJA tertutup, bukan "apa saja yang bukan tabel". Endpoint ini
+     * mengeluarkan isi berkas tanpa melewati modal persetujuan, jadi setiap jenis
+     * yang ditambahkan ke sini adalah keputusan tersendiri yang harus dinyatakan
+     * — bukan sesuatu yang ikut terbuka karena kebetulan lolos saringan.
+     */
+    private static final Set<String> STREAMABLE_FORMATS = Set.of("PDF", "DOCX");
+
+    /**
+     * Berkas yang dialirkan apa adanya untuk digambar di halaman.
+     *
+     * DOCX ikut sejak front-end menguraikannya sendiri di peramban. Sebelumnya
+     * yang dikirim cuma teks paragrafnya, dan tabel serta gambar hilang — pada
+     * dokumen yang justru isinya tabel, yang tampil bukan ringkasan melainkan
+     * potongan yang menyesatkan.
+     */
     @Transactional
     public DownloadPayload preview(User user, String slug, UUID resourceId,
             String ipAddress, String userAgent) {
         DatasetResource resource = findFile(user, slug, resourceId);
 
-        if (!"PDF".equalsIgnoreCase(formatName(resource))) {
+        if (!STREAMABLE_FORMATS.contains(formatName(resource).toUpperCase(Locale.ROOT))) {
             throw new BusinessValidationException(
-                    "Berkas " + formatName(resource) + " tidak bisa digambar langsung oleh "
-                            + "peramban. Pakai endpoint pratinjau teks untuk dokumen Word.");
+                    "Berkas " + formatName(resource) + " tidak bisa ditampilkan di halaman. "
+                            + "Yang bisa hanya " + String.join(" dan ", STREAMABLE_FORMATS) + ".");
         }
 
         recordAccess(user, resource, ipAddress, userAgent);

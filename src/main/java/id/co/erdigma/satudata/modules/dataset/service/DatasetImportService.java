@@ -314,13 +314,43 @@ public class DatasetImportService {
      * Nama aslinya tidak hilang — yang ditulis penerbit tersimpan di kolom
      * label.
      */
+    /**
+     * Nama berkas untuk sebuah dataset pada urutan tertentu.
+     *
+     * Dipisah menjadi fungsi tersendiri supaya aturannya punya SATU tempat.
+     * Penyuntingan dataset perlu tahu nama apa yang akan dipakai SEBELUM
+     * berkasnya benar-benar disimpan, karena ia harus memastikan nama itu
+     * belum ditempati berkas lain milik dataset yang sama -- termasuk berkas
+     * yang sudah ditandai terhapus, yang barisnya hilang dari daftar tetapi
+     * berkasnya masih duduk di penyimpanan.
+     *
+     * Kalau aturan ini ditiru di tempat lain, tiruannya akan menyimpang begitu
+     * salah satunya diperbaiki, dan akibatnya bukan galat melainkan berkas yang
+     * diam-diam menimpa berkas lain.
+     */
+    public static String fileNameFor(Dataset dataset, Format format, int order) {
+        String extension = format.getName().toLowerCase(java.util.Locale.ROOT);
+        return order == 1
+                ? dataset.getSlug() + "." + extension
+                : dataset.getSlug() + "-" + order + "." + extension;
+    }
+
     @Transactional
     public DatasetResource registerFile(Dataset dataset, Path source, Format format,
             String label, String contentType, int order) {
-        String extension = format.getName().toLowerCase(java.util.Locale.ROOT);
-        String fileName = order == 1
-                ? dataset.getSlug() + "." + extension
-                : dataset.getSlug() + "-" + order + "." + extension;
+        return registerFile(dataset, source, format, label, contentType,
+                fileNameFor(dataset, format, order));
+    }
+
+    /**
+     * Sama seperti di atas, tetapi namanya sudah ditentukan pemanggil.
+     *
+     * Dipakai penyuntingan dataset, yang memilih nama dengan melewati nama-nama
+     * yang sudah terpakai alih-alih menghitungnya dari nomor urut.
+     */
+    @Transactional
+    public DatasetResource registerFile(Dataset dataset, Path source, Format format,
+            String label, String contentType, String fileName) {
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
         StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
         // Ditandai SEBELUM barisnya disimpan. Penyimpanan berhasil sementara

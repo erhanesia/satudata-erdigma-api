@@ -92,6 +92,24 @@
 			<version>5.4.1</version>
 		</dependency>
 
+		<!--
+			Pembersih HTML untuk deskripsi dataset, yang kini ditulis lewat editor
+			teks kaya di panel admin.
+
+			INI penjagaan yang sesungguhnya, bukan pembersihan di sisi klien.
+			Apa pun yang dikerjakan peramban bisa dilewati begitu seseorang
+			memanggil API-nya langsung, dan yang tersimpan di database itulah yang
+			kelak digambar di halaman semua orang.
+
+			Versinya ditulis eksplisit dengan alasan yang sama seperti POI di atas:
+			Spring Boot tidak mengelolanya.
+		-->
+		<dependency>
+			<groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+			<artifactId>owasp-java-html-sanitizer</artifactId>
+			<version>20240325.1</version>
+		</dependency>
+
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>

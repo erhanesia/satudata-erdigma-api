@@ -39,4 +39,17 @@ public interface DatasetResourceRepository
      */
     List<DatasetResource> findAllByDatasetIdInAndDeletedAtIsNullOrderByFormatSortOrderAscFileNameAsc(
             List<UUID> datasetIds);
+
+    /**
+     * Seluruh berkas milik satu dataset, TERMASUK yang sudah ditandai terhapus.
+     *
+     * Satu-satunya pemakainya adalah pemilihan nama berkas baru saat dataset
+     * disunting, dan justru baris terhapus itulah alasannya ada. Penghapusan di
+     * sini bersifat lunak: barisnya tinggal, dan berkasnya masih menempati
+     * kuncinya di penyimpanan. Kalau nama baru dipilih hanya dengan melihat
+     * berkas yang masih hidup, sebuah unggahan bisa mendapat nama milik berkas
+     * terhapus dan MENIMPA isinya di penyimpanan -- tanpa satu pun galat, karena
+     * penyimpanan objek dengan senang hati menulis ulang kunci yang sudah ada.
+     */
+    List<DatasetResource> findAllByDatasetId(UUID datasetId);
 }
