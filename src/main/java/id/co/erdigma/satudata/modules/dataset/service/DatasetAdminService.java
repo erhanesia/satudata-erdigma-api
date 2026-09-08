@@ -1,14 +1,22 @@
 package id.co.erdigma.satudata.modules.dataset.service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.AuditAction;
+import id.co.erdigma.satudata.enums.IdPrefix;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
 import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
@@ -18,12 +26,16 @@ import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestUpdateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetCollection;
-import id.co.erdigma.satudata.modules.dataset.mapper.DatasetMapper;
+import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.repository.CollectionRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
+import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.TopicRepository;
+import id.co.erdigma.satudata.modules.dataset.service.DatasetFileService.UploadedFile;
 import id.co.erdigma.satudata.modules.dataset.entity.Topic;
 import id.co.erdigma.satudata.exception.BusinessValidationException;
+
+import jakarta.persistence.EntityManager;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,11 +65,17 @@ public class DatasetAdminService {
     @Autowired
     private AccessRuleValidator accessRuleValidator;
     @Autowired
-    private DatasetMapper datasetMapper;
-    @Autowired
     private TopicRepository topicRepository;
     @Autowired
     private CollectionRepository collectionRepository;
+    @Autowired
+    private DatasetResourceRepository datasetResourceRepository;
+    @Autowired
+    private DatasetFileService datasetFileService;
+    @Autowired
+    private DatasetService datasetService;
+    @Autowired
+    private EntityManager entityManager;
 
     /**
      * Menyunting keterangan dataset yang sudah terbit.
@@ -70,9 +88,25 @@ public class DatasetAdminService {
      * slug bisa terlihat sedikit ketinggalan dari judulnya, dan itu pertukaran
      * yang disengaja.
      *
-     * <b>Divisi</b> dan <b>berkas</b>. Keduanya keputusan yang jauh lebih besar
-     * daripada merapikan keterangan; berkas sudah punya jalurnya sendiri di
-     * {@code reimport}.
+     * <b>Divisi</b> dan <b>pengunggah</b>. Keduanya jejak siapa yang bertanggung
+     * jawab atas dataset ini, dicatat sekali saat penerbitan. Memindahkannya
+     * adalah keputusan yang jauh lebih besar daripada merapikan keterangan, dan
+     * tidak semestinya tersedia di layar yang sama.
+     *
+     * <h2>Berkas BISA diubah di sini</h2>
+     *
+     * Dulu tidak, dan alasannya tidak bertahan: layar sunting dibuat semirip
+     * mungkin dengan layar terbit, dan layar terbit dimulai dari berkas. Kartu
+     * berkas yang ada tetapi tidak bisa disentuh adalah janji yang tidak ditepati.
+     *
+     * Bentuknya keadaan-akhir: {@code body.files} adalah daftar berkas yang
+     * SEHARUSNYA dimiliki dataset ini sesudah penyimpanan. Berkas lama disebut
+     * dengan {@code id}-nya, berkas baru tanpa {@code id} dan dipasangkan menurut
+     * urutan dengan bagian multipart. Yang tidak disebut dilepas.
+     *
+     * Menghilangkan {@code body.files} sama sekali berarti berkasnya tidak
+     * disentuh. Itu penting: klien yang cuma memperbaiki salah ketik pada judul
+     * tidak boleh kehilangan seluruh berkasnya karena lupa menyebutkannya.
      *
      * <h2>Null berarti "jangan diubah"</h2>
      *
@@ -86,7 +120,8 @@ public class DatasetAdminService {
      * yang sengaja membuka.
      */
     @Transactional
-    public DatasetResponse update(User actor, String slug, DatasetRequestUpdateDTO body) {
+    public DatasetResponse update(User actor, String slug, DatasetRequestUpdateDTO body,
+            List<MultipartFile> files) {
         Dataset dataset = fetch(slug);
 
         List<String> perubahan = new ArrayList<>();
@@ -137,6 +172,10 @@ public class DatasetAdminService {
             dataset.getAccessRules().addAll(aturanBaru);
         }
 
+        if (body.getFiles() != null) {
+            perubahan.addAll(applyFiles(dataset, body.getFiles(), files));
+        }
+
         datasetRepository.save(dataset);
 
         // Jejaknya menyebut APA yang berubah, bukan sekadar "dataset disunting".
@@ -154,7 +193,166 @@ public class DatasetAdminService {
         log.info("Dataset {} disunting oleh {} ({} perubahan)", slug,
                 actor != null ? actor.getCognitoId() : "sistem", perubahan.size());
 
-        return datasetMapper.toResponse(dataset);
+        /*
+          Dibaca ulang lewat jalur yang sama dengan GET /{slug}, bukan dipetakan
+          dari entity yang ada di tangan.
+
+          Sejak berkas ikut bisa disunting, memetakan entity-nya tidak lagi
+          cukup: berkas TIDAK dipetakan sebagai koleksi pada Dataset -- ia
+          dilekatkan belakangan oleh DatasetService lewat query tersendiri --
+          sehingga respons hasil pemetaan akan menyebut daftar berkas yang
+          sudah tidak berlaku, atau tidak menyebutnya sama sekali. Formulir
+          sunting memuat ulang dirinya dari respons ini, jadi daftar yang basi
+          langsung terlihat sebagai berkas yang tetap ada setelah dihapus.
+
+          Tanpa menghitung kunjungan: menyunting dataset bukan mengunjunginya.
+        */
+        entityManager.flush();
+        entityManager.clear();
+        return datasetService.getBySlug(actor, slug, false);
+    }
+
+    /**
+     * Menjadikan berkas dataset ini sama dengan daftar yang diminta.
+     *
+     * <h2>Semua penolakan lebih dulu, baru satu pun perubahan</h2>
+     *
+     * Pemeriksaan dikerjakan sampai habis sebelum berkas pertama dilepas atau
+     * disimpan. Transaksi memang akan membatalkan baris database kalau nanti
+     * ada yang gagal, tetapi penyimpanan berkas tidak ikut dibatalkan semudah
+     * itu -- dan permintaan yang setengah jalan lalu ditolak adalah keadaan
+     * yang paling sulit dijelaskan kepada orang yang menekan Simpan.
+     */
+    private List<String> applyFiles(Dataset dataset,
+            List<DatasetRequestUpdateDTO.FileEdit> wanted, List<MultipartFile> files) {
+
+        List<DatasetResource> live = datasetFileService.listLive(dataset);
+        Map<UUID, DatasetResource> byId = live.stream()
+                .collect(Collectors.toMap(DatasetResource::getId, Function.identity()));
+
+        Set<UUID> keptIds = new LinkedHashSet<>();
+        List<DatasetRequestUpdateDTO.FileEdit> added = new ArrayList<>();
+
+        /*
+          Id hasil uraian, sejajar dengan `wanted`, null untuk entri berkas baru.
+
+          Disimpan sekali supaya perulangan kedua di bawah tidak perlu
+          menguraikannya lagi. Kunci map TIDAK dipakai untuk ini: DTO-nya
+          memakai Lombok @Data, jadi dua entri yang isinya kebetulan sama akan
+          dianggap satu.
+        */
+        List<UUID> parsedIds = new ArrayList<>();
+
+        for (DatasetRequestUpdateDTO.FileEdit entry : wanted) {
+            if (trimToNull(entry.getId()) == null) {
+                parsedIds.add(null);
+                added.add(entry);
+                continue;
+            }
+            // Awalan `dres-` dilepas di sini. Bentuk berawalan itulah yang
+            // dikirim API ke klien, jadi itu pula yang kembali ke sini.
+            UUID id = IdPrefix.DATASET_RESOURCE.parse(entry.getId());
+            parsedIds.add(id);
+
+            if (!byId.containsKey(id)) {
+                throw new BusinessValidationException("Berkas " + entry.getId()
+                        + " bukan milik dataset ini, atau sudah dihapus lebih dulu. "
+                        + "Muat ulang halamannya supaya daftarnya kembali sesuai.");
+            }
+            if (!keptIds.add(id)) {
+                throw new BusinessValidationException("Berkas " + entry.getId()
+                        + " disebut lebih dari sekali.");
+            }
+        }
+
+        List<MultipartFile> content = (files == null) ? List.of()
+                : files.stream().filter(f -> f != null && !f.isEmpty()).toList();
+
+        /*
+          Jumlah entri baru harus sama persis dengan jumlah bagian multipart,
+          karena keduanya dipasangkan menurut urutan.
+
+          Diperiksa di sini, bukan diserahkan seluruhnya ke pemeriksa bersama:
+          keadaan "tidak ada entri baru sama sekali padahal berkasnya terkirim"
+          akan lolos di sana sebagai unggahan tanpa keterangan, lalu tersimpan
+          dengan nama seadanya. Berkas yang muncul tanpa pernah diminta lebih
+          membingungkan daripada permintaan yang ditolak.
+        */
+        if (added.size() != content.size()) {
+            throw new BusinessValidationException("Ada " + content.size()
+                    + " berkas terkirim, sedangkan yang dinyatakan sebagai berkas baru ada "
+                    + added.size() + ". Jumlah keduanya harus sama karena dipasangkan "
+                    + "menurut urutan.");
+        }
+
+        if (keptIds.isEmpty() && content.isEmpty()) {
+            throw new BusinessValidationException("Dataset harus punya minimal satu berkas. "
+                    + "Kalau memang ingin menghilangkannya dari katalog, hapus datasetnya.");
+        }
+
+        long keptBytes = keptIds.stream().mapToLong(id -> byId.get(id).getSizeBytes()).sum();
+        List<UploadedFile> uploads = datasetFileService.validate(added, files,
+                dataset.getTitle(), keptIds.size(), keptBytes);
+
+        // Sejak sini barulah ada yang berubah.
+        List<String> perubahan = new ArrayList<>();
+
+        for (int i = 0; i < wanted.size(); i++) {
+            UUID id = parsedIds.get(i);
+            if (id == null) {
+                continue;
+            }
+            DatasetRequestUpdateDTO.FileEdit entry = wanted.get(i);
+            DatasetResource resource = byId.get(id);
+            String label = trimToNull(entry.getLabel());
+            // Nama kosong berarti tidak disebut, bukan berarti dikosongkan.
+            // Berkas tanpa nama tidak punya apa pun untuk ditampilkan di tab
+            // Data Explorer selain nama berkas mentahnya.
+            if (label != null && !label.equals(resource.getLabel())) {
+                perubahan.add("nama berkas \"" + resource.getLabel() + "\" menjadi \""
+                        + label + "\"");
+                resource.setLabel(label);
+                datasetResourceRepository.save(resource);
+            }
+        }
+
+        List<DatasetResource> dropped = live.stream()
+                .filter(r -> !keptIds.contains(r.getId()))
+                .toList();
+        for (DatasetResource resource : dropped) {
+            perubahan.add("berkas \"" + resource.getLabel() + "\" dilepas");
+            datasetFileService.remove(resource);
+        }
+
+        if (!uploads.isEmpty()) {
+            perubahan.add(uploads.size() == 1
+                    ? "berkas \"" + uploads.get(0).label() + "\" ditambahkan"
+                    : uploads.size() + " berkas ditambahkan");
+        }
+
+        /*
+          Hanya dijalankan kalau susunan berkasnya benar-benar berubah.
+
+          Keduanya menghitung ulang berkas mana yang mewakili dataset beserta
+          jumlah baris dan kolomnya, dan yang kedua ikut menyetel waktu
+          perubahan terakhir. Menjalankannya pada penyimpanan yang cuma
+          mengganti judul akan membuat dataset terlihat baru diperbarui
+          datanya, padahal isinya tidak disentuh sama sekali.
+        */
+        if (!dropped.isEmpty() || !uploads.isEmpty()) {
+            datasetFileService.store(dataset, uploads, false);
+            datasetFileService.refreshAggregates(dataset);
+        }
+
+        return perubahan;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String cleaned = value.trim();
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     private boolean sameTopics(List<Topic> a, List<Topic> b) {

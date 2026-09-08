@@ -209,19 +209,43 @@ public class DatasetController {
         return ResponseEntity.ok(datasetService.getBySlug(user, slug, recordView));
     }
 
-    @PatchMapping("/{slug}")
+    @PatchMapping(value = "/{slug}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Menyunting dataset", description = """
-            Mengubah keterangan dataset yang sudah terbit: judul, deskripsi, disclaimer, cakupan,
-            topik, koleksi, dan aturan akses.
+            Mengubah dataset yang sudah terbit: judul, deskripsi, disclaimer, cakupan, topik,
+            koleksi, aturan akses, **dan berkasnya**.
+
+            Permintaan berupa **multipart**, sama seperti penerbitan:
+            - `body` — perubahan dalam JSON
+            - `files` — berkas BARU saja, boleh tidak ada sama sekali
 
             **Slug TIDAK ikut berubah** meski judulnya diganti. Slug dipakai orang membagikan
             tautan, dan mengubahnya mematikan setiap tautan yang sudah beredar. Akibatnya slug bisa
             terlihat sedikit ketinggalan dari judulnya, dan itu pertukaran yang disengaja.
 
-            **Divisi dan berkas juga tidak bisa diubah di sini.** Memindahkan dataset antar divisi
-            mengubah siapa yang bertanggung jawab atasnya; mengganti berkas punya jalurnya sendiri
-            di `POST /{slug}/reimport`.
+            **Divisi dan pengunggah tidak bisa diubah di sini.** Keduanya jejak siapa yang
+            bertanggung jawab atas dataset ini, dicatat sekali saat penerbitan; yang mencatat siapa
+            menyunting apa adalah log audit.
+
+            ### Cara kerja `body.files`
+
+            Ruas itu adalah **keadaan akhir** yang diinginkan, bukan daftar perintah:
+
+            | Entri | Artinya |
+            |---|---|
+            | ber-`id` | berkas lama dipertahankan; `label` boleh dirapikan |
+            | tanpa `id` | berkas baru, dipasangkan menurut urutan dengan bagian `files` |
+            | berkas lama yang tidak disebut | **dilepas**, beserta isi tabelnya |
+
+            **Hilangkan `body.files` sama sekali kalau tidak ingin menyentuh berkas.** Klien yang
+            cuma memperbaiki salah ketik pada judul tidak boleh kehilangan seluruh berkasnya
+            karena lupa menyebutkannya.
+
+            Dataset tidak boleh berakhir tanpa berkas sama sekali; permintaan seperti itu ditolak
+            400. Untuk menghilangkan dataset dari katalog, pakai `DELETE /{slug}`.
+
+            Batasnya sama dengan penerbitan: maksimal 10 MB per berkas, 40 MB seluruhnya, dan
+            paling banyak 10 berkas — berkas lama yang dipertahankan ikut dihitung.
 
             Ruas keterangan yang **dihilangkan** berarti "jangan diubah"; string **kosong** berarti
             "kosongkan". `accessRules` dikecualikan dan wajib disertakan — ruas keamanan yang lupa
@@ -230,15 +254,16 @@ public class DatasetController {
             Menulis jejak audit yang menyebut apa saja yang berubah, bukan sekadar "disunting".
             """)
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Dataset tersimpan", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "Isian tidak sah", content = @Content(schema = @Schema(type = "object", properties = @StringToClassMapItem(key = "error", value = String.class)))),
+            @ApiResponse(responseCode = "200", description = "Dataset tersimpan, berikut daftar berkasnya yang terbaru", useReturnTypeSchema = true),
+            @ApiResponse(responseCode = "400", description = "Isian tidak sah, berkas melebihi batas, jumlah keterangan berkas tidak sama dengan jumlah berkas, atau seluruh berkas dilepas", content = @Content(schema = @Schema(type = "object", properties = @StringToClassMapItem(key = "error", value = String.class)))),
             @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @Content),
             @ApiResponse(responseCode = "404", description = "Slug tidak dikenal", content = @Content)
     })
     public ResponseEntity<DatasetResponse> update(@CurrentUser User user,
             @Parameter(description = "Slug dataset.", example = "penjualan-bulanan", required = true) @PathVariable String slug,
-            @Valid @RequestBody DatasetRequestUpdateDTO body) {
-        return ResponseEntity.ok(datasetAdminService.update(user, slug, body));
+            @Valid @RequestPart("body") DatasetRequestUpdateDTO body,
+            @Parameter(description = "Berkas BARU saja. Ulangi bagian `files` untuk tiap berkas.") @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return ResponseEntity.ok(datasetAdminService.update(user, slug, body, files));
     }
 
     @PatchMapping("/{slug}/access-rules")
@@ -414,16 +439,19 @@ public class DatasetController {
     }
 
     @GetMapping("/{slug}/preview")
-    @Operation(summary = "Tampilkan berkas PDF di halaman", description = """
-            Mengalirkan berkas **PDF** dengan `Content-Disposition: inline`, supaya peramban
-            menggambarnya sendiri di dalam halaman alih-alih menyimpannya ke disk.
+    @Operation(summary = "Tampilkan berkas PDF atau Word di halaman", description = """
+            Mengalirkan berkas **PDF** dan **DOCX** dengan `Content-Disposition: inline`.
+
+            PDF digambar peramban sendiri. DOCX diurai front-end di sisi klien sehingga tabel,
+            gambar, dan tata letaknya ikut tampil — yang dibutuhkan dari sini cuma byte-nya.
 
             **Pratinjau tetap tercatat** di log dengan `accessType = PREVIEW`. Ia tidak melewati
             modal persetujuan, tapi byte-nya tetap keluar dan isinya tetap terbaca utuh — berkas
             rahasia yang bisa dibaca tanpa jejak membuat seluruh guna log itu hilang.
 
-            Untuk dokumen Word, pakai `/preview/text`. Untuk CSV dan XLSX tidak perlu: isinya
-            sudah menjadi tabel dataset.
+            `/preview/text` masih ada dan mengirim teks paragraf DOCX saja, untuk pemanggil yang
+            cuma butuh isinya sebagai teks. Untuk CSV dan XLSX tidak perlu keduanya: isinya sudah
+            menjadi tabel dataset.
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Berkas dialirkan untuk digambar peramban"),

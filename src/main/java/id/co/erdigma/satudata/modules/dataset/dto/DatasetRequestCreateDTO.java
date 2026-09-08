@@ -79,7 +79,7 @@ public class DatasetRequestCreateDTO {
      * lebih berbahaya daripada penolakan.
      */
     @Data
-    public static class FileMeta {
+    public static class FileMeta implements FileMetaView {
 
         @Size(max = 255, message = "Nama file maksimal 255 karakter")
         @Schema(description = "Nama berkas versi manusia.", example = "Kamus Kolom")

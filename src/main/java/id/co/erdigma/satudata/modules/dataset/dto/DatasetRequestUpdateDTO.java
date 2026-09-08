@@ -23,14 +23,13 @@ import lombok.Data;
  * sadar, bukan efek samping dari menyunting judul.
  *
  * <b>Divisi.</b> Penanda kepemilikan, dicatat saat penerbitan. Memindahkan
- * dataset antar divisi mengubah siapa yang bertanggung jawab atasnya — keputusan
+ * dataset antar divisi mengubah siapa yang bertanggung jawab atasnya, keputusan
  * yang lebih besar daripada merapikan keterangan, dan tidak semestinya tersedia
  * di layar yang sama.
  *
- * <b>Berkas.</b> Mengganti isi dataset berbeda sifatnya dari mengganti
- * keterangannya, dan sudah punya jalurnya sendiri di {@code POST /{slug}/reimport}.
- * Menggabungkan keduanya membuat satu layar memegang dua tindakan dengan risiko
- * yang jauh berbeda.
+ * <b>Pengunggah.</b> Jejak siapa yang menerbitkan, bukan penanda pemilik saat
+ * ini. Penyunting berikutnya tidak menggantikannya; yang mencatat siapa
+ * menyunting apa adalah jejak audit.
  *
  * <h2>Ruas kosong berarti apa</h2>
  *
@@ -60,7 +59,7 @@ public class DatasetRequestUpdateDTO {
             + "mengosongkannya; hilangkan ruasnya kalau tidak ingin mengubahnya.")
     private String disclaimer;
 
-    @Schema(description = "Periode yang dicakup data.", example = "Jan – Des 2025")
+    @Schema(description = "Periode yang dicakup data.", example = "Jan - Des 2025")
     private String coverage;
 
     @Schema(description = "Nama topik, ambil dari GET /api/v1/topics. Menggantikan daftar lama, "
@@ -94,4 +93,77 @@ public class DatasetRequestUpdateDTO {
             + "menghilangkan ruasnya ditolak dengan 400.",
             requiredMode = Schema.RequiredMode.REQUIRED)
     private List<@Valid AccessRuleDTO> accessRules;
+
+    /*
+      Berkas: dihilangkan berarti "jangan disentuh", dikirim berarti "beginilah
+      seharusnya isinya".
+
+      Bentuk keadaan-akhir dipilih karena itu yang benar-benar diketahui
+      formulir. Layar sunting memuat daftar berkas yang ada, orang menambah,
+      mengganti nama, dan mencoret beberapa, lalu menekan Simpan. Yang ia
+      maksud adalah daftar yang sedang ia lihat, bukan rentetan perintah tambah
+      dan hapus. Menerjemahkannya jadi rentetan perintah di sisi klien hanya
+      menciptakan kemungkinan setengah jalan: berkas terhapus lalu penambahnya
+      gagal, dan tidak ada transaksi yang bisa mengembalikannya.
+
+      Sebaliknya, membiarkan ruas ini hilang tetap harus mungkin. Klien yang
+      cuma ingin memperbaiki salah ketik pada judul tidak boleh dipaksa
+      menyebutkan ulang seluruh berkasnya -- dan kalau ia lupa, kelupaan itu
+      tidak boleh berarti "hapus semuanya".
+    */
+    @Schema(description = "Keadaan akhir daftar berkas. HILANGKAN ruas ini kalau tidak ingin "
+            + "menyentuh berkas sama sekali. Kalau dikirim, berkas lama yang TIDAK disebut di "
+            + "sini akan dihapus. Entri ber-`id` menunjuk berkas yang sudah ada; entri tanpa "
+            + "`id` adalah berkas baru dan dipasangkan menurut urutan dengan bagian `files` "
+            + "pada multipart.")
+    private List<@Valid FileEdit> files;
+
+    /**
+     * Satu baris berkas pada formulir sunting.
+     *
+     * <h2>Ada atau tidaknya {@code id} yang membedakan segalanya</h2>
+     *
+     * Beri {@code id}, dan entri ini menunjuk berkas yang sudah tersimpan:
+     * isinya tidak disentuh, hanya namanya yang bisa dirapikan. Kosongkan
+     * {@code id}, dan entri ini berkas baru yang harus punya pasangan di bagian
+     * {@code files} pada multipart.
+     *
+     * Pemasangan berkas baru BERDASARKAN URUTAN, sama seperti pada penerbitan:
+     * entri tanpa {@code id} yang ke-n dipasangkan dengan bagian {@code files}
+     * ke-n. Karena itu jumlah keduanya harus sama persis, dan itu diperiksa
+     * lebih dulu sebelum apa pun disimpan.
+     */
+    @Data
+    public static class FileEdit implements FileMetaView {
+
+        /*
+          Bertipe String, bukan UUID, dan itu bukan kelalaian.
+
+          Seluruh id di API ini keluar dalam bentuk BERAWALAN -- `dres-` untuk
+          berkas dataset -- lewat @PrefixedId pada DTO responsnya. Formulir
+          sunting memuat daftar berkas dari respons itu lalu mengirimkan
+          id-nya kembali apa adanya, jadi yang tiba di sini memang berawalan.
+
+          Ruas bertipe UUID akan menolaknya di lapisan Jackson, sebelum satu
+          baris kode aplikasi sempat berjalan, dan yang sampai ke pengguna
+          cuma "Permintaan tidak valid." tanpa menyebut ruas mana yang salah.
+          Sebagai String, awalannya dilepas IdPrefix.parse() yang juga
+          menerima UUID telanjang dan menolak awalan milik tabel lain dengan
+          pesan yang menyebut bentuk yang benar.
+        */
+        @Schema(description = "Id berkas yang sudah ada, dalam bentuk berawalan seperti "
+                + "yang dikirim GET /api/v1/datasets/{slug}. Kosongkan untuk berkas baru.",
+                example = "dres-e0000000-0000-4000-8000-000000000009")
+        private String id;
+
+        @Size(max = 255, message = "Nama file maksimal 255 karakter")
+        @Schema(description = "Nama berkas versi manusia.", example = "Kamus Kolom")
+        private String label;
+
+        @Schema(description = "Jenis berkas baru: CSV, XLSX, PDF, atau DOCX. Harus cocok dengan "
+                + "ekstensi berkas yang dikirim. Diabaikan untuk entri ber-`id`, karena jenis "
+                + "berkas yang sudah tersimpan tidak bisa berubah tanpa mengganti isinya.",
+                example = "CSV")
+        private String format;
+    }
 }
