@@ -269,6 +269,45 @@ class HrisEmployeeDirectoryTest {
         mockServerHolder.server.verify();
     }
 
+    @Test
+    @DisplayName("admin warisan HRIS mendapat authority ROLE_HRIS_ADMIN")
+    void adminWarisanDapatAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        simpanBarisSegar(cognitoId, Role.ADMIN, HrisPermissionLevel.ADMIN);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_ADMIN", "ROLE_HRIS_ADMIN");
+    }
+
+    @Test
+    @DisplayName("admin tunjukan tidak mendapat ROLE_HRIS_ADMIN")
+    void adminTunjukanTidakDapatAuthorityKhusus() {
+        String cognitoId = "it-test-" + UUID.randomUUID();
+        cognitoIdBuatanTest.add(cognitoId);
+        simpanBarisSegar(cognitoId, Role.ADMIN, HrisPermissionLevel.MANAGER);
+
+        var authorities = converter.convert(jwtFabrikasi(cognitoId)).getAuthorities();
+
+        assertThat(authorities).extracting("authority")
+                .contains("ROLE_ADMIN")
+                .doesNotContain("ROLE_HRIS_ADMIN");
+    }
+
+    /** Baris dengan updatedAt sekarang: masihSegar() memotong panggilan HRIS. */
+    private void simpanBarisSegar(String cognitoId, Role role, HrisPermissionLevel level) {
+        User baris = new User();
+        baris.setCognitoId(cognitoId);
+        baris.setEmail(cognitoId + "@erdigma.co.id");
+        baris.setName("Uji Authority");
+        baris.setRole(role);
+        baris.setHrisPermissionLevel(level);
+        baris.setUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.MICROS));
+        userRepository.save(baris);
+    }
+
     private static Jwt jwtFabrikasi(String cognitoId) {
         Instant sekarang = Instant.now();
         return Jwt.withTokenValue("token-fabrikasi-tidak-perlu-valid")
