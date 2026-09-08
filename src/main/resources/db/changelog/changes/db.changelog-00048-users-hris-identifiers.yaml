@@ -1,0 +1,69 @@
+# Pengguna menyimpan pengenal HRIS-nya, dan berhenti menyimpan label karangan.
+#
+# ---------------------------------------------------------------------------
+# Yang ditambah
+#
+# `hris_position_id` dan `hris_employee_id`. Keduanya SUDAH dikirim HRIS di
+# setiap balasan /me sebagai `employee.position.id` dan `employee.id`; selama ini
+# hanya tidak disimpan.
+#
+# Dipakai mencocokkan aturan POSITION dan EMPLOYEE di `dataset_access_rule`.
+#
+# Kenapa UUID dan bukan nama, padahal `users.position` sudah menyimpan namanya:
+# tabel posisi HRIS memuat salah ketik seperti "HO Customer Acquisiton" dan
+# "Sales & Complience Manager". Begitu diperbaiki di sana, pembatasan berbasis
+# nama putus tanpa galat apa pun — dataset sekadar berhenti terlihat oleh orang
+# yang seharusnya berhak. UUID tidak ikut berubah saat namanya dirapikan.
+#
+# `users.position` tetap ada, tetapi turun peran: hanya untuk ditampilkan di
+# antarmuka, bukan lagi untuk mencocokkan.
+#
+# ---------------------------------------------------------------------------
+# Yang dicabut
+#
+# `access_position`. Kolom itu menampung sembilan label karangan yang kini
+# digantikan `job_level`, dan tidak ada satu pun kode yang pernah mengisinya —
+# keempat pengguna Cognito di database kosong pada kolom ini, sementara 25
+# pengguna seed terisi lewat changeset 32 yang berpagar `dev`.
+#
+# Jadi di produksi kolom ini kosong seluruhnya, dan tidak ada data yang hilang.
+#
+# `job_level` yang menggantikannya tidak perlu diapa-apakan: kolomnya sudah ada,
+# sudah diisi HrisEmployeeDirectory di setiap login, dan kedua belas nilainya
+# sudah cocok satu-satu dengan enum HRIS.
+databaseChangeLog:
+  - changeSet:
+      id: "48"
+      author: author
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: hris_position_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+              - column:
+                  name: hris_employee_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+
+        - dropColumn:
+            tableName: users
+            columnName: access_position
+
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: hris_position_id
+        - dropColumn:
+            tableName: users
+            columnName: hris_employee_id
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: access_position
+                  type: varchar(60)

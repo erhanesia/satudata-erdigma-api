@@ -26,7 +26,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import id.co.erdigma.satudata.annotation.CurrentUser;
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.IdPrefix;
-import id.co.erdigma.satudata.modules.dataset.dto.DatasetPositionUpdateDTO;
+import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
+import id.co.erdigma.satudata.modules.dataset.dto.DatasetAccessRuleUpdateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestCreateDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestGetDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
@@ -207,33 +208,50 @@ public class DatasetController {
         return ResponseEntity.ok(datasetService.getBySlug(user, slug, recordView));
     }
 
-    @PatchMapping("/{slug}/positions")
+    @PatchMapping("/{slug}/access-rules")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Ganti daftar posisi yang boleh melihat", description = """
-            Mengganti SELURUH tag posisi sebuah dataset dengan daftar yang dikirim. Kirim daftar
+    @Operation(summary = "Ganti aturan siapa yang boleh melihat", description = """
+            Mengganti SELURUH aturan akses sebuah dataset dengan daftar yang dikirim. Kirim daftar
             kosong untuk melepas semuanya.
 
-            Ambil nilai yang sah dari `GET /api/v1/positions`; label di luar daftar itu ditolak 400
-            supaya tag hasil salah ketik tidak pernah tersimpan.
+            Tiap aturan punya `ruleType` dan `ruleValue`, dan ketiga jenisnya berdiri SEJAJAR —
+            dataset terlihat bila salah satu aturan cocok:
+
+            | `ruleType` | `ruleValue` | Ambil dari |
+            | --- | --- | --- |
+            | `JOB_LEVEL` | label jenjang, mis. `Senior Manager` | `GET /api/v1/job-levels` |
+            | `POSITION` | UUID posisi HRIS | `GET /api/v1/positions` |
+            | `EMPLOYEE` | UUID karyawan HRIS | `GET /api/v1/employees` |
+
+            Aturan `EMPLOYEE` tidak lebih kuat daripada `JOB_LEVEL`, hanya lebih sempit. Dataset
+            dengan `JOB_LEVEL=Manager` dan `EMPLOYEE=<Budi>` terlihat oleh seluruh Manager DAN oleh
+            Budi — bukan oleh Manager yang kebetulan bernama Budi.
+
+            Nilai yang tidak dikenal ditolak 400 supaya aturan hasil salah ketik tidak pernah
+            tersimpan. Aturan seperti itu tidak akan pernah cocok dengan siapa pun, dan diam-diam
+            mengunci datasetnya dari semua orang.
 
             **Ini mengubah hak akses, seketika.** Daftar kosong membuat dataset terbuka untuk
-            seluruh karyawan; daftar berisi menguncinya ke posisi-posisi itu saja. Yang tidak
-            berhak tidak lagi melihatnya di `GET /api/v1/datasets`, dan mendapat 403 kalau membuka
-            slug-nya langsung. ADMIN dan pengunggahnya sendiri selalu bisa.
+            seluruh karyawan. Yang tidak berhak tidak lagi melihatnya di `GET /api/v1/datasets`,
+            dan mendapat 403 kalau membuka slug-nya langsung. ADMIN dan pengunggahnya sendiri
+            selalu bisa.
 
             Perubahannya tercatat di `GET /api/v1/audit-logs` lengkap dengan nilai sebelum dan
             sesudahnya.
+
+            Menggantikan `PATCH /{slug}/positions` yang menerima sembilan label karangan. Lihat
+            changeset 47.
             """)
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Tag posisi tersimpan"),
-            @ApiResponse(responseCode = "400", description = "Ada label posisi yang tidak dikenal", content = @Content(schema = @Schema(type = "object", properties = @StringToClassMapItem(key = "error", value = String.class)))),
+            @ApiResponse(responseCode = "200", description = "Aturan akses tersimpan"),
+            @ApiResponse(responseCode = "400", description = "Ada aturan yang tidak sah", content = @Content(schema = @Schema(type = "object", properties = @StringToClassMapItem(key = "error", value = String.class)))),
             @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @Content),
             @ApiResponse(responseCode = "404", description = "Slug tidak dikenal", content = @Content)
     })
-    public ResponseEntity<List<String>> updatePositions(@CurrentUser User user,
+    public ResponseEntity<List<AccessRuleDTO>> updateAccessRules(@CurrentUser User user,
             @Parameter(description = "Slug dataset.", example = "penjualan-bulanan", required = true) @PathVariable String slug,
-            @RequestBody DatasetPositionUpdateDTO body) {
-        return ResponseEntity.ok(datasetAdminService.updatePositions(user, slug, body.getPositions()));
+            @Valid @RequestBody DatasetAccessRuleUpdateDTO body) {
+        return ResponseEntity.ok(datasetAdminService.updateAccessRules(user, slug, body.getAccessRules()));
     }
 
     @DeleteMapping("/{slug}")

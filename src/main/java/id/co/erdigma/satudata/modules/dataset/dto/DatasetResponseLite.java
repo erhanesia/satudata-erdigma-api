@@ -27,10 +27,15 @@ public class DatasetResponseLite {
     private List<String> formats;
 
     /**
-     * Posisi jabatan yang boleh melihat dataset ini — kolom "Akses posisi" di
-     * panel admin. Kosong berarti terbuka untuk seluruh karyawan.
+     * Aturan siapa yang boleh melihat dataset ini — kolom "Akses" di panel
+     * admin. Kosong berarti terbuka untuk seluruh karyawan.
+     *
+     * Kolom itu menampilkan JUMLAHNYA per jenis, bukan namanya. Nilai
+     * {@code POSITION} dan {@code EMPLOYEE} berupa UUID, dan menerjemahkannya
+     * jadi nama berarti satu panggilan HRIS per baris — lima puluh panggilan
+     * untuk satu halaman tabel. Nama lengkapnya ada di panel detail.
      */
-    private List<String> positions;
+    private List<AccessRuleDTO> accessRules;
 
     /**
      * Berkas milik dataset ini. Ikut di daftar karena panel admin menampilkan

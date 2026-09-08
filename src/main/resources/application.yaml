@@ -149,3 +149,14 @@ satudata:
       # sehingga dev dan prod tidak saling timpa.
       bucket: ${AWS_S3_BUCKET:erhanesia-files}
       region: ${AWS_REGION:ap-southeast-1}
+
+  hris:
+    # Alamat dasar berkas milik HRIS — untuk saat ini hanya foto profil karyawan.
+    # Bucket-nya sama dengan milik Satu Data dan objeknya bisa dibaca publik,
+    # jadi fotonya ditunjuk langsung alih-alih diteruskan lewat aplikasi ini.
+    #
+    # Yang disimpan di kolom `users.profile_image` cuma path-nya
+    # (/hris/dev/profile-image/...); URL utuhnya disusun MeService dari nilai
+    # ini. Kalau bucket-nya kelak ditutup dari publik, yang berubah cukup baris
+    # ini — front-end tidak perlu tahu apa-apa.
+    file-base-url: ${HRIS_FILE_BASE_URL:https://erhanesia-files.s3.ap-southeast-1.amazonaws.com}

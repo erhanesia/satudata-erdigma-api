@@ -9,11 +9,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.AuditAction;
-import id.co.erdigma.satudata.enums.JobPosition;
-import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
+import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
+import id.co.erdigma.satudata.modules.dataset.entity.AccessRule;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
+import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -41,32 +42,40 @@ public class DatasetAdminService {
     private DatasetRepository datasetRepository;
     @Autowired
     private AuditLogService auditLogService;
+    @Autowired
+    private AccessRuleValidator accessRuleValidator;
 
     /**
-     * Mengganti seluruh tag posisi sebuah dataset.
+     * Mengganti seluruh aturan "siapa boleh melihat" sebuah dataset.
      *
      * Ini mengubah SIAPA YANG BISA MEMBUKA datanya, seketika: daftar kosong
      * membuatnya terbuka untuk seluruh karyawan, daftar berisi menguncinya ke
-     * posisi-posisi itu saja. Karena itu nilai sebelum dan sesudahnya ikut
+     * aturan-aturan itu saja. Karena itu nilai sebelum dan sesudahnya ikut
      * ditulis ke jejak audit — pertanyaan "sejak kapan begini" harus punya
      * jawaban.
+     *
+     * Menimpa seluruhnya, bukan menambah. Antarmuka mengirim keadaan akhir yang
+     * diinginkan, dan itu membuat penghapusan satu aturan tidak butuh endpoint
+     * tersendiri.
      */
     @Transactional
-    public List<String> updatePositions(User actor, String slug, List<String> requested) {
+    public List<AccessRuleDTO> updateAccessRules(User actor, String slug, List<AccessRuleDTO> requested) {
         Dataset dataset = fetch(slug);
 
-        List<String> before = new ArrayList<>(dataset.getPositions());
-        List<String> after = validate(requested);
+        List<AccessRule> before = new ArrayList<>(dataset.getAccessRules());
+        List<AccessRule> after = accessRuleValidator.validate(requested);
 
-        dataset.getPositions().clear();
-        dataset.getPositions().addAll(after);
+        dataset.getAccessRules().clear();
+        dataset.getAccessRules().addAll(after);
         datasetRepository.save(dataset);
 
         auditLogService.recordDataset(actor, AuditAction.UPDATE, dataset,
-                "Akses posisi diubah dari [" + join(before) + "] menjadi ["
+                "Aturan akses diubah dari [" + join(before) + "] menjadi ["
                         + join(after) + "].");
 
-        return after;
+        return after.stream()
+                .map(r -> new AccessRuleDTO(r.getRuleType(), r.getRuleValue()))
+                .toList();
     }
 
     /**
@@ -102,28 +111,19 @@ public class DatasetAdminService {
      * datasetnya terkunci dari semua orang kecuali ADMIN dan pengunggahnya —
      * tanpa satu pun galat yang menunjukkan sebabnya.
      */
-    private List<String> validate(List<String> requested) {
-        List<String> result = new ArrayList<>();
-        if (requested == null) {
-            return result;
-        }
-        for (String label : requested) {
-            if (label == null || label.isBlank()) {
-                continue;
-            }
-            JobPosition position = JobPosition.fromLabel(label);
-            if (position == null) {
-                throw new BusinessValidationException(
-                        "Posisi \"" + label.trim() + "\" tidak dikenal. Lihat GET /api/v1/positions.");
-            }
-            if (!result.contains(position.getLabel())) {
-                result.add(position.getLabel());
-            }
-        }
-        return result;
-    }
-
-    private String join(List<String> position) {
-        return position.isEmpty() ? "kosong" : String.join(", ", position);
+    /**
+     * Jejak audit ditulis untuk dibaca manusia, bukan diurai mesin.
+     *
+     * UUID posisi dan karyawan ikut apa adanya. Menerjemahkannya jadi nama
+     * berarti memanggil HRIS di tengah transaksi yang sedang menulis, dan
+     * kegagalan panggilan itu akan menggagalkan perubahan yang sebenarnya sudah
+     * sah. Jenisnya disebutkan supaya pembacanya tahu UUID itu merujuk apa.
+     */
+    private String join(List<AccessRule> rules) {
+        return rules.isEmpty()
+                ? "kosong"
+                : rules.stream()
+                        .map(r -> r.getRuleType() + "=" + r.getRuleValue())
+                        .collect(java.util.stream.Collectors.joining(", "));
     }
 }

@@ -1,0 +1,147 @@
+# Pembatasan akses dataset berpindah dari satu sumbu karangan ke tiga sumbu HRIS.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# `dataset_position_access` menampung satu sumbu saja, dan nilainya diambil dari
+# sembilan label enum `JobPosition` di kode Satu Data:
+#
+#   Direksi, General Manager, Manager, Project Manager, Team Lead,
+#   Data Analyst, Staff Senior, Staff, Magang
+#
+# Kesembilannya dikarang dari berkas desain panel admin, disusun sebelum siapa
+# pun tahu isi HRIS yang sebenarnya. Komentar di JobPosition.java sudah menandai
+# dirinya SEMENTARA sejak awal.
+#
+# Setelah HRIS dipanggil, terlihat bahwa daftar itu mencampur dua sumbu yang di
+# HRIS justru dipisah tegas:
+#
+#   job_level  - enum 12 nilai, soal senioritas
+#                DIREKTUR_UTAMA, DIREKTUR, GENERAL_MANAGER, SENIOR_MANAGER,
+#                MANAGER, JUNIOR_MANAGER, SUPERVISOR, COORDINATOR, SPECIALIST,
+#                STAFF, NON_STAFF, ADMIN
+#
+#   position   - tabel 98 baris, soal peran fungsional
+#                "Data Manager", "IT Developer", "Social Media Specialist", ...
+#
+# "Direksi" dan "Staff Senior" milik sumbu pertama; "Project Manager" dan
+# "Data Analyst" milik sumbu kedua. Tidak satu pun cocok satu-satu, dan itu
+# sebabnya `users.access_position` tidak pernah bisa diisi otomatis dari HRIS.
+#
+# ---------------------------------------------------------------------------
+# Kenapa satu tabel, bukan tiga
+#
+# Bisa saja dibuat tabel terpisah untuk tiap sumbu. Tetapi ketiganya dinilai
+# dengan cara yang persis sama: dataset terlihat bila SALAH SATU barisnya cocok.
+#
+# Tiga tabel berarti tiga query dan tiga cabang kode yang harus dijaga tetap
+# sepakat selamanya — dan yang tertinggal saat aturannya berubah adalah
+# kebocoran, bukan sekadar bug. Satu tabel berarti satu query dan satu aturan.
+#
+# Menambah sumbu keempat nanti, misalnya per divisi, cukup menambah satu nilai
+# `rule_type` tanpa tabel baru dan tanpa menyentuh DatasetAccessGuard.
+#
+# ---------------------------------------------------------------------------
+# Isi kolomnya
+#
+#   rule_type = JOB_LEVEL  ->  rule_value = LABEL jenjang, mis. "Senior Manager"
+#   rule_type = POSITION   ->  rule_value = UUID posisi milik HRIS
+#   rule_type = EMPLOYEE   ->  rule_value = UUID karyawan milik HRIS
+#
+# Perhatikan JOB_LEVEL menyimpan LABEL, bukan nama enumnya. "SENIOR_MANAGER"
+# tidak akan pernah cocok dengan siapa pun: HrisJobLevel.fromLabel()
+# membandingkan dengan label, dan users.job_level pun berisi bentuk label karena
+# hris-api memasang @JsonValue di sana. Penting saat memperbaiki data lewat SQL
+# langsung, karena baris yang salah bentuk tidak menimbulkan galat apa pun --
+# ia sekadar tidak pernah cocok.
+#
+# Lebar 60 tetap cukup: UUID hanya 36 karakter, dan label terpanjang
+# ("General Manager") hanya 15.
+#
+# Nilainya sengaja UUID, bukan nama. Tabel posisi HRIS memuat salah ketik seperti
+# "HO Customer Acquisiton" dan "Sales & Complience"; begitu diperbaiki di sana,
+# pembatasan berbasis nama akan putus diam-diam tanpa ada yang menyadarinya.
+#
+# ---------------------------------------------------------------------------
+# Data lama
+#
+# TIDAK disalin, dan itu disengaja.
+#
+# Di produksi tabel lamanya kosong: changeset 26 hanya MEMBUAT tabelnya, dan
+# seluruh baris yang ada berasal dari seed berpagar `contextFilter: dev`.
+#
+# Di laptop pengembang ada sekitar 52 baris, tetapi isinya sembilan label yang
+# bukan nama enum HRIS maupun UUID. Menyalinnya hanya memindahkan nilai yang
+# pasti tidak cocok dengan apa pun, lalu membuat pengembang mengira pembatasannya
+# masih berlaku padahal tidak. Lebih jujur dibiarkan kosong dan disetel ulang
+# lewat antarmuka.
+databaseChangeLog:
+  - changeSet:
+      id: "47"
+      author: author
+      changes:
+        - createTable:
+            tableName: dataset_access_rule
+            columns:
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_value
+                  type: varchar(60)
+                  constraints:
+                    nullable: false
+
+        # Ketiganya jadi kunci primer. Satu dataset boleh punya aturan dari jenis
+        # berbeda dengan nilai yang kebetulan sama, jadi jenisnya harus ikut
+        # membedakan.
+        - addPrimaryKey:
+            tableName: dataset_access_rule
+            columnNames: dataset_id, rule_type, rule_value
+            constraintName: dataset_access_rule_pkey
+
+        - addForeignKeyConstraint:
+            baseTableName: dataset_access_rule
+            baseColumnNames: dataset_id
+            referencedTableName: dataset
+            referencedColumnNames: id
+            constraintName: dataset_access_rule_to_dataset
+            onDelete: CASCADE
+
+        - dropTable:
+            tableName: dataset_position_access
+
+      rollback:
+        - dropTable:
+            tableName: dataset_access_rule
+        - createTable:
+            tableName: dataset_position_access
+            columns:
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: position
+                  type: varchar(60)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: dataset_position_access
+            columnNames: dataset_id, position
+            constraintName: dataset_position_access_pkey
+        - addForeignKeyConstraint:
+            baseTableName: dataset_position_access
+            baseColumnNames: dataset_id
+            referencedTableName: dataset
+            referencedColumnNames: id
+            constraintName: dataset_position_access_to_dataset
+            onDelete: CASCADE

@@ -31,6 +31,7 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetRowRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.FormatRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
 import id.co.erdigma.satudata.service.storage.StoredFile;
+import id.co.erdigma.satudata.service.storage.StoredFileCleaner;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,6 +88,8 @@ public class DatasetImportService {
     private FormatRepository formatRepository;
     @Autowired
     private FileStorage fileStorage;
+    @Autowired
+    private StoredFileCleaner storedFileCleaner;
     @Autowired
     private ColumnTypeGuesser columnTypeGuesser;
 
@@ -320,6 +323,10 @@ public class DatasetImportService {
                 : dataset.getSlug() + "-" + order + "." + extension;
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
         StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
+        // Ditandai SEBELUM barisnya disimpan. Penyimpanan berhasil sementara
+        // transaksinya kemudian batal adalah persis keadaan yang meninggalkan
+        // berkas yatim di S3.
+        storedFileCleaner.deleteOnRollback(stored.getStorageKey());
 
         DatasetResource resource = new DatasetResource();
         resource.setDataset(dataset);
@@ -358,6 +365,10 @@ public class DatasetImportService {
         String fileName = dataset.getSlug() + ".csv";
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
         StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
+        // Ditandai SEBELUM barisnya disimpan. Penyimpanan berhasil sementara
+        // transaksinya kemudian batal adalah persis keadaan yang meninggalkan
+        // berkas yatim di S3.
+        storedFileCleaner.deleteOnRollback(stored.getStorageKey());
 
         DatasetResource resource = new DatasetResource();
         resource.setDataset(dataset);

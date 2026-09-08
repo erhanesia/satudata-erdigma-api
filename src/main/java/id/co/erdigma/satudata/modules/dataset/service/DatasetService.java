@@ -61,17 +61,15 @@ public class DatasetService {
         if (params.getDivisions() != null && !params.getDivisions().isEmpty()) {
             spec = spec.and(DatasetSpecification.hasDivisionIn(params.getDivisions()));
         }
-        if (params.getPositions() != null && !params.getPositions().isEmpty()) {
-            spec = spec.and(DatasetSpecification.hasPositionIn(params.getPositions()));
+        if (params.getJobLevels() != null && !params.getJobLevels().isEmpty()) {
+            spec = spec.and(DatasetSpecification.hasJobLevelRuleIn(params.getJobLevels()));
         }
 
         // Pembatasan akses dipasang PALING AKHIR dan tidak bisa dimatikan lewat
         // parameter apa pun. Penyaring di atas adalah keinginan pemanggil;
         // yang ini batas haknya.
         if (user == null || user.getRole() != Role.ADMIN) {
-            spec = spec.and(DatasetSpecification.visibleTo(
-                    user != null ? user.getAccessPosition() : null,
-                    user != null ? user.getId() : null));
+            spec = spec.and(DatasetSpecification.visibleTo(user));
         }
         return spec;
     }
