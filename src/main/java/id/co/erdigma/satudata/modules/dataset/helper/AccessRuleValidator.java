@@ -34,12 +34,31 @@ public class AccessRuleValidator {
         }
 
         for (AccessRuleDTO dto : requested) {
+            // Aturan cacat DITOLAK, bukan dilewati.
+            //
+            // Sebelumnya keduanya dilewati diam-diam, dan itu gagal ke arah yang
+            // salah. Daftar berisi satu aturan cacat berakhir sebagai daftar
+            // kosong, dan daftar kosong berarti "terbuka untuk seluruh
+            // karyawan" -- sehingga permintaan yang cacat MENGHAPUS seluruh
+            // pembatasan sebuah dataset lalu menjawab 200.
+            //
+            // Daftar yang memang kosong tetap sah dan tetap berarti membuka;
+            // itu ditangani lebih awal, sebelum perulangan ini. Yang ditolak di
+            // sini hanya daftar berisi yang salah bentuk, karena pengirimnya
+            // jelas bermaksud memasang aturan dan gagal.
+            //
+            // @Valid di controller sudah menahannya lebih dulu dengan 400 yang
+            // lebih informatif. Pemeriksaan ini lapis kedua, untuk jalur yang
+            // suatu saat memanggil validator ini tanpa lewat controller.
             if (dto == null || dto.getRuleType() == null) {
-                continue;
+                throw new BusinessValidationException(
+                        "Ada aturan tanpa jenis. Setiap aturan wajib menyebut ruleType.");
             }
             String value = (dto.getRuleValue() == null) ? null : dto.getRuleValue().trim();
             if (value == null || value.isEmpty()) {
-                continue;
+                throw new BusinessValidationException(
+                        "Aturan bertipe " + dto.getRuleType() + " dikirim tanpa nilai. "
+                                + "Kirim daftar kosong kalau memang ingin membukanya untuk semua.");
             }
 
             AccessRule rule = new AccessRule(dto.getRuleType(), normalise(dto.getRuleType(), value));

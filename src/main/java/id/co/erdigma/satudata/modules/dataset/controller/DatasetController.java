@@ -250,7 +250,7 @@ public class DatasetController {
     })
     public ResponseEntity<List<AccessRuleDTO>> updateAccessRules(@CurrentUser User user,
             @Parameter(description = "Slug dataset.", example = "penjualan-bulanan", required = true) @PathVariable String slug,
-            @RequestBody DatasetAccessRuleUpdateDTO body) {
+            @Valid @RequestBody DatasetAccessRuleUpdateDTO body) {
         return ResponseEntity.ok(datasetAdminService.updateAccessRules(user, slug, body.getAccessRules()));
     }
 
