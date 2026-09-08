@@ -1,0 +1,32 @@
+# Kolom "Channel" pada tabel log unduhan.
+#
+# Desain halaman Log menampilkan kolom Channel berisi "Web". Nilainya memang
+# selalu Web untuk sekarang — satu-satunya jalan mengunduh adalah lewat portal —
+# tetapi menuliskannya sebagai teks tetap di antarmuka berarti mengarang: begitu
+# jalur API key aktif, kolom itu akan tetap berbunyi "Web" untuk unduhan yang
+# sebenarnya lewat mesin, dan tidak ada satu pun galat yang memberi tahu.
+#
+# Menyimpannya sebagai data membuat kolomnya benar hari ini dan tetap benar
+# nanti. Yang perlu dilakukan saat jalur API menyala hanya mengisi nilai lain
+# saat menulis barisnya.
+#
+# Nilai: WEB (unduhan lewat portal) atau API (lewat kunci mesin).
+databaseChangeLog:
+  - changeSet:
+      id: "36"
+      author: author
+      changes:
+        - addColumn:
+            tableName: download_log
+            columns:
+              - column:
+                  name: channel
+                  type: varchar(20)
+                  defaultValue: WEB
+                  constraints:
+                    nullable: false
+
+      rollback:
+        - dropColumn:
+            tableName: download_log
+            columnName: channel

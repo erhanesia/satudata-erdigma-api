@@ -13,5 +13,7 @@ public interface DatasetColumnRepository extends JpaRepository<DatasetColumn, UU
 
     List<DatasetColumn> findAllByDatasetIdAndDeletedAtIsNullOrderBySortOrderAsc(UUID datasetId);
 
-    long countByDatasetId(UUID datasetId);
+    List<DatasetColumn> findAllByResourceIdAndDeletedAtIsNullOrderBySortOrderAsc(UUID resourceId);
+
+    long countByResourceIdAndDeletedAtIsNull(UUID resourceId);
 }

@@ -54,4 +54,14 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
                    OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:q AS string), '%')))
             """)
     Page<User> cariAktif(@Param("q") String q, Pageable pageable);
+
+    /**
+     * Isi kartu "Pengguna aktif" di dasbor admin.
+     *
+     * "Aktif" di sini berarti barisnya belum di-soft-delete, BUKAN "pernah
+     * masuk belakangan ini" — portal ini stateless dan tidak menyimpan waktu
+     * kunjungan terakhir siapa pun. Begitu HRIS jadi sumber datanya, angka ini
+     * mengikuti status kepegawaian di sana.
+     */
+    long countByDeletedAtIsNull();
 }

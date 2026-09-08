@@ -1,0 +1,102 @@
+# Dua hal sekaligus, keduanya menyangkut apa yang tampil di panel admin.
+#
+# ---------------------------------------------------------------------------
+# 1. DAFTAR JENIS BERKAS DIRAPIKAN
+#
+# Jenis berkas yang benar-benar dipakai portal ini hanya empat: CSV, Excel,
+# PDF, dan Word. Data acuan awal (changeset 00008) memuat GEOJSON, KML, dan
+# API — dua yang pertama tidak dipakai, dan "API" sama sekali bukan jenis
+# berkas melainkan cara pengiriman data.
+#
+# "API" dihapus dengan sadar: dataset realtime sudah punya penandanya sendiri,
+# kolom is_realtime, sehingga menaruhnya juga di daftar "jenis file" membuat
+# satu keadaan tercatat di dua tempat dengan makna yang berbeda. Kalau ternyata
+# daftar itu memang harus memuat API, mengembalikannya cukup satu insert.
+#
+# ---------------------------------------------------------------------------
+# 2. TABEL "AKSES POSISI"
+#
+# Daftar posisi jabatan yang boleh melihat sebuah dataset.
+#
+# PENTING, DAN JANGAN DIHAPUS DARI CATATAN INI: tabel ini baru MENYIMPAN dan
+# MENAMPILKAN tag posisi. Tag-nya BELUM ditegakkan di endpoint mana pun —
+# siapa pun yang sudah masuk masih bisa membuka dan mengunduh dataset apa pun.
+# Penegakannya menunggu HRIS, karena daftar posisi yang sah dan posisi setiap
+# karyawan berasal dari sana, sedangkan kolom users.position di sini masih teks
+# bebas yang tidak bisa dipetakan dengan aman ke daftar itu.
+#
+# Antarmuka menyatakan hal ini apa adanya, supaya tidak ada yang mengira
+# datanya sudah terlindungi padahal belum.
+databaseChangeLog:
+  - changeSet:
+      id: "26"
+      author: author
+      changes:
+
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000006" }
+              - column: { name: name, value: "PDF" }
+              - column: { name: sort_order, valueNumeric: 3 }
+        - insert:
+            tableName: format
+            columns:
+              - column: { name: id, value: "c0000000-0000-4000-8000-000000000007" }
+              - column: { name: name, value: "DOCX" }
+              - column: { name: sort_order, valueNumeric: 4 }
+
+        # Lencana pada dataset yang memakai jenis lama dilepas lebih dulu —
+        # kalau tidak, penghapusan barisnya tertahan foreign key.
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM dataset_formats df
+              USING format f
+              WHERE df.format_id = f.id AND f.name IN ('GEOJSON', 'KML', 'API');
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM format WHERE name IN ('GEOJSON', 'KML', 'API');
+
+        - createTable:
+            tableName: dataset_position_access
+            columns:
+              - column:
+                  name: dataset_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              # Label posisi disimpan sebagai teks, bukan FK ke tabel acuan,
+              # karena daftar sahnya nanti milik HRIS — bukan milik portal ini.
+              - column:
+                  name: position
+                  type: varchar(60)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: dataset_position_access
+            columnNames: dataset_id, position
+            constraintName: dataset_position_access_pkey
+        - addForeignKeyConstraint:
+            baseTableName: dataset_position_access
+            baseColumnNames: dataset_id
+            constraintName: dataset_position_access_to_dataset
+            referencedTableName: dataset
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+      rollback:
+        - dropTable:
+            tableName: dataset_position_access
+        - sql:
+            splitStatements: false
+            sql: |
+              DELETE FROM format WHERE name IN ('PDF', 'DOCX');
+        - sql:
+            splitStatements: false
+            sql: |
+              INSERT INTO format (id, name, sort_order) VALUES
+                ('c0000000-0000-4000-8000-000000000003', 'GEOJSON', 3),
+                ('c0000000-0000-4000-8000-000000000004', 'KML', 4),
+                ('c0000000-0000-4000-8000-000000000005', 'API', 5);

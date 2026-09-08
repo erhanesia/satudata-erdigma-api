@@ -28,7 +28,6 @@ public enum IdPrefix {
     TOPIC("tpc"),
     FORMAT("fmt"),
     USER("usr"),
-    API_KEY("key"),
     INCIDENT("inc");
 
     private final String value;
@@ -54,26 +53,26 @@ public enum IdPrefix {
      * ikut rusak karena perubahan tampilan.
      *
      * Awalan milik tabel lain ditolak dengan pesan yang menyebutkan bentuk yang
-     * benar — mengirim id divisi ke endpoint API key lebih mungkin berarti salah
+     * benar — mengirim id divisi ke endpoint dataset lebih mungkin berarti salah
      * salin daripada serangan, dan pesan yang jelas menghemat waktu.
      */
     public UUID parse(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new BusinessValidationException("Id tidak boleh kosong.");
         }
-        String bersih = raw.trim();
+        String cleaned = raw.trim();
         String awalan = value + "-";
 
-        if (bersih.startsWith(awalan)) {
-            bersih = bersih.substring(awalan.length());
-        } else if (bersih.indexOf('-') > 0 && !isUuidShaped(bersih)) {
+        if (cleaned.startsWith(awalan)) {
+            cleaned = cleaned.substring(awalan.length());
+        } else if (cleaned.indexOf('-') > 0 && !isUuidShaped(cleaned)) {
             throw new BusinessValidationException(
                     "Id \"" + raw + "\" bukan milik sumber daya ini. Bentuk yang benar diawali \""
                             + awalan + "\".");
         }
 
         try {
-            return UUID.fromString(bersih);
+            return UUID.fromString(cleaned);
         } catch (IllegalArgumentException e) {
             throw new BusinessValidationException("Id \"" + raw + "\" bukan UUID yang sah.");
         }

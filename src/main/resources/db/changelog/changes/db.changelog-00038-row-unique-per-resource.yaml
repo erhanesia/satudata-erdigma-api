@@ -1,0 +1,103 @@
+# Tempat terakhir anggapan "satu dataset satu tabel" masih hidup.
+#
+# Changeset 37 memindahkan isi tabel dari dataset ke berkas, tapi indeks unik
+# dari changeset 12 masih berbunyi (dataset_id, row_number). Artinya baris
+# nomor 1 hanya boleh ada SATU kali per dataset - jadi berkas kedua yang isinya
+# dibaca langsung ditolak database di baris pertamanya:
+#
+#   duplicate key value violates unique constraint
+#   "dataset_row_dataset_id_row_number_index"
+#
+# Nomor baris memang harus unik, tapi cakupannya berkas, bukan dataset. Dua
+# berkas sama-sama punya baris nomor 1, dan itu benar.
+#
+# Sekalian resource_id dijadikan wajib. Setelah pengisian data lama pada
+# changeset 37 tidak ada satu pun baris atau kolom yang kosong penunjuknya, dan
+# membiarkannya boleh kosong berarti membiarkan isi tabel yang tidak akan
+# pernah muncul di tab mana pun - kesalahan yang diam, bukan yang berteriak.
+# Nilai NULL juga akan melumpuhkan indeks uniknya, karena Postgres menganggap
+# setiap NULL berbeda satu sama lain.
+databaseChangeLog:
+  - changeSet:
+      id: "38"
+      author: author
+      changes:
+        - dropIndex:
+            tableName: dataset_row
+            indexName: dataset_row_dataset_id_row_number_index
+
+        - addNotNullConstraint:
+            tableName: dataset_row
+            columnName: resource_id
+            columnDataType: UUID
+
+        - addNotNullConstraint:
+            tableName: dataset_column
+            columnName: resource_id
+            columnDataType: UUID
+
+        # Indeks dari changeset 37 dibuat ulang sebagai unik. Kolomnya sama
+        # persis, jadi pembacaan per halaman tetap terlayani olehnya.
+        - dropIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+
+        - createIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+            unique: true
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: row_number
+
+        - addForeignKeyConstraint:
+            constraintName: dataset_row_to_resource
+            baseTableName: dataset_row
+            baseColumnNames: resource_id
+            referencedTableName: dataset_resource
+            referencedColumnNames: id
+
+        - addForeignKeyConstraint:
+            constraintName: dataset_column_to_resource
+            baseTableName: dataset_column
+            baseColumnNames: resource_id
+            referencedTableName: dataset_resource
+            referencedColumnNames: id
+
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: dataset_column
+            constraintName: dataset_column_to_resource
+        - dropForeignKeyConstraint:
+            baseTableName: dataset_row
+            constraintName: dataset_row_to_resource
+        - dropIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+        - createIndex:
+            tableName: dataset_row
+            indexName: idx_dataset_row_resource
+            columns:
+              - column:
+                  name: resource_id
+              - column:
+                  name: row_number
+        - dropNotNullConstraint:
+            tableName: dataset_column
+            columnName: resource_id
+            columnDataType: UUID
+        - dropNotNullConstraint:
+            tableName: dataset_row
+            columnName: resource_id
+            columnDataType: UUID
+        - createIndex:
+            tableName: dataset_row
+            indexName: dataset_row_dataset_id_row_number_index
+            unique: true
+            columns:
+              - column:
+                  name: dataset_id
+              - column:
+                  name: row_number

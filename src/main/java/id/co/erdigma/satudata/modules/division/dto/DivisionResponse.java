@@ -13,8 +13,6 @@ public class DivisionResponse {
     private UUID id;
     private String code;
     private String name;
-    private String logoBg;
-    private long apiCalls;
     private long downloads;
 
     private LocalDateTime createdAt;

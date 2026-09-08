@@ -1,0 +1,39 @@
+# Menyamakan klaim jumlah baris dengan baris yang benar-benar ada.
+#
+# APA YANG SALAH. Changeset 00009 memberi dataset contoh angka row_count yang
+# besar — 162 sampai 512.000 — supaya katalognya terlihat berisi. Baris
+# sesungguhnya tidak pernah dimuat: tabel dataset_row untuk dataset-dataset itu
+# kosong sama sekali.
+#
+# Selama Data Explorer hanya punya satu bentuk, cacat itu tidak terlihat. Sejak
+# tab-nya mengikuti isi yang tersedia, angka tadi jadi menerbitkan tab "Tabel"
+# yang begitu dibuka tidak menampilkan apa-apa — dan pembacanya menyimpulkan
+# aplikasinya rusak, bukan bahwa datanya memang tidak ada.
+#
+# Angka yang tidak bisa dibuktikan lebih buruk daripada angka nol. Nol bisa
+# dibaca sebagai "belum ada"; 512.000 yang kosong hanya bisa dibaca sebagai
+# "gagal memuat".
+#
+# Yang benar-benar punya isi — penjualan-furnitur-2025 dan hasil unggahan
+# sungguhan — tidak tersentuh: syarat WHERE-nya justru memastikan itu.
+databaseChangeLog:
+  - changeSet:
+      id: "34"
+      author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset d
+              SET row_count = 0
+              WHERE d.row_count > 0
+                AND NOT EXISTS (
+                  SELECT 1 FROM dataset_row r WHERE r.dataset_id = d.id
+                );
+
+      # Tidak dipulihkan: angka asalnya memang tidak pernah punya dasar.
+      rollback:
+        - empty

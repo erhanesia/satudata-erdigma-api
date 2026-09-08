@@ -4,12 +4,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import id.co.erdigma.satudata.modules.stats.dto.DailyDownloadResponse;
 import id.co.erdigma.satudata.modules.stats.dto.StatsResponse;
 import id.co.erdigma.satudata.modules.stats.service.StatsService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -35,5 +38,24 @@ public class StatsController {
     @ApiResponse(responseCode = "200", description = "Statistik berhasil dihitung", useReturnTypeSchema = true)
     public ResponseEntity<StatsResponse> index() {
         return ResponseEntity.ok(statsService.getStats());
+    }
+
+    @GetMapping("/downloads/daily")
+    @Operation(summary = "Jumlah unduhan per hari", description = """
+            Bahan grafik **Download harian** di dasbor admin.
+
+            **Cara tercepat:** tekan Execute tanpa mengisi apa pun — 30 hari terakhir.
+
+            **Membaca hasilnya:** `days` berisi satu baris untuk SETIAP tanggal dalam rentang,
+            termasuk tanggal yang jumlahnya nol. Itu disengaja: grafik garis yang melompati
+            tanggal sepi memperlihatkan tren yang tidak pernah terjadi.
+
+            Rentangnya berakhir hari ini, jadi baris terakhir adalah hari yang belum selesai —
+            wajar kalau angkanya lebih rendah dari hari sebelumnya.
+            """)
+    @ApiResponse(responseCode = "200", description = "Grafik berhasil dihitung", useReturnTypeSchema = true)
+    public ResponseEntity<DailyDownloadResponse> dailyDownloads(
+            @Parameter(description = "Panjang rentang dalam hari, dihitung mundur dari hari ini. Maksimum 365.", example = "30") @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(statsService.getDailyDownloads(days));
     }
 }

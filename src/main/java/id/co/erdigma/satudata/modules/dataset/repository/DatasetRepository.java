@@ -72,4 +72,15 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID>, JpaSpec
             ORDER BY d.lastUpdatedAt DESC
             """)
     List<Dataset> findAllByDivisionCode(@Param("divisionCode") String divisionCode);
+
+    /**
+     * Isi kartu "Kontributor": berapa ORANG yang pernah menerbitkan dataset,
+     * bukan berapa dataset yang punya pemilik. Dataset seed lama yang
+     * uploaded_by-nya kosong tidak ikut terhitung.
+     */
+    @Query("""
+            SELECT COUNT(DISTINCT d.uploadedBy.id) FROM Dataset d
+            WHERE d.deletedAt IS NULL AND d.uploadedBy IS NOT NULL
+            """)
+    long countContributor();
 }

@@ -21,13 +21,37 @@ public class DatasetResponseLite {
     private String slug;
     private String title;
     private DivisionResponseLite division;
+    /** Siapa yang mengunggah. Null untuk dataset seed. */
+    private UploaderResponse uploadedBy;
     private List<String> topics;
     private List<String> formats;
+
+    /**
+     * Aturan siapa yang boleh melihat dataset ini — kolom "Akses" di panel
+     * admin. Kosong berarti terbuka untuk seluruh karyawan.
+     *
+     * Kolom itu menampilkan JUMLAHNYA per jenis, bukan namanya. Nilai
+     * {@code POSITION} dan {@code EMPLOYEE} berupa UUID, dan menerjemahkannya
+     * jadi nama berarti satu panggilan HRIS per baris — lima puluh panggilan
+     * untuk satu halaman tabel. Nama lengkapnya ada di panel detail.
+     */
+    private List<AccessRuleDTO> accessRules;
+
+    /**
+     * Berkas milik dataset ini. Ikut di daftar karena panel admin menampilkan
+     * lencana jenis dan ukurannya per baris; daftar publik boleh mengabaikannya.
+     */
+    private List<DatasetResourceResponse> resources;
     private String coverage;
     private String notes;
+    /** Dipakai tabel panel admin; daftar publik boleh mengabaikannya. */
+    private long rowCount;
     private long downloads;
     private long apiCalls;
     private long views;
     private boolean realtime;
     private LocalDateTime lastUpdatedAt;
+
+    /** Kapan dataset ini pertama kali masuk katalog — kolom "Diunggah". */
+    private LocalDateTime createdAt;
 }

@@ -1,0 +1,74 @@
+# Dua kolom untuk dua kemampuan baru: pratinjau berkas di halaman, dan menandai
+# berkas mana yang isinya menjadi tabel dataset.
+#
+# ---------------------------------------------------------------------------
+# 1. dataset_resource.is_table_source
+#
+# Satu dataset boleh memuat beberapa berkas, tapi hanya SATU yang isinya dibaca
+# menjadi dataset_row. Sampai sekarang tidak ada cara mengetahui yang mana:
+# front-end terpaksa menebak dari jenis berkasnya, dan tebakan itu salah begitu
+# sebuah dataset memuat dua spreadsheet — tabel milik berkas pertama akan
+# ditampilkan juga di bawah berkas kedua, seolah isinya sama.
+#
+# ---------------------------------------------------------------------------
+# 2. download_log.access_type
+#
+# PDF dan Word kini bisa dibuka langsung di halaman. Byte-nya tetap keluar dari
+# server, hanya saja tanpa melewati modal persetujuan — dan berkas yang bisa
+# dibaca utuh tanpa meninggalkan jejak membuat seluruh gunanya log ini hilang.
+#
+# Karena itu pratinjau ikut dicatat, TAPI dibedakan. Menyamakannya dengan
+# unduhan akan membuat kolom "persetujuan" berbunyi "tidak" pada ratusan baris
+# dan terbaca seolah orang mengunduh tanpa menyetujui apa pun. Dua peristiwa
+# yang berbeda pantas punya namanya masing-masing.
+databaseChangeLog:
+  - changeSet:
+      id: "35"
+      author: author
+      changes:
+        - addColumn:
+            tableName: dataset_resource
+            columns:
+              - column:
+                  name: is_table_source
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+
+        - addColumn:
+            tableName: download_log
+            columns:
+              - column:
+                  name: access_type
+                  type: varchar(20)
+                  defaultValue: DOWNLOAD
+                  constraints:
+                    nullable: false
+
+        # Berkas yang sudah terlanjur ada: yang menjadi sumber tabel adalah
+        # berkas CSV pertama pada dataset yang memang punya baris.
+        - sql:
+            splitStatements: false
+            sql: |
+              UPDATE dataset_resource r
+              SET is_table_source = TRUE
+              WHERE r.id IN (
+                SELECT DISTINCT ON (x.dataset_id) x.id
+                FROM dataset_resource x
+                JOIN dataset d ON d.id = x.dataset_id
+                JOIN format f ON f.id = x.format_id
+                WHERE x.deleted_at IS NULL
+                  AND d.deleted_at IS NULL
+                  AND d.row_count > 0
+                  AND f.name = 'CSV'
+                ORDER BY x.dataset_id, x.created_at, x.file_name
+              );
+
+      rollback:
+        - dropColumn:
+            tableName: download_log
+            columnName: access_type
+        - dropColumn:
+            tableName: dataset_resource
+            columnName: is_table_source

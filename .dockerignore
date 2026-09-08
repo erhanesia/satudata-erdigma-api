@@ -1,0 +1,9 @@
+.git
+.github
+target
+docs
+compose.yaml
+.env
+.env.*
+!.env.example
+*.md

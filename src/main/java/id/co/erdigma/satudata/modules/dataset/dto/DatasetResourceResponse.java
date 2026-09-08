@@ -14,9 +14,29 @@ import lombok.Data;
 public class DatasetResourceResponse {
     @PrefixedId(IdPrefix.DATASET_RESOURCE)
     private UUID id;
+    /** Nama yang ditulis penerbit, mis. "Kamus Kolom". Boleh kosong. */
+    private String label;
+
     private String fileName;
     private String formatName;
     private String contentType;
     private long sizeBytes;
     private String checksumSha256;
+
+    /**
+     * True bila berkas inilah yang ditampilkan lebih dulu, dan yang angka
+     * barisnya mewakili dataset di halaman katalog.
+     *
+     * Sejak changeset 37 ini BUKAN lagi berarti "satu-satunya yang punya
+     * tabel" — berkas lain yang bisa dibaca pun punya tabelnya sendiri.
+     */
+    private boolean tableSource;
+
+    /**
+     * Ukuran tabel milik berkas ini. Nol berarti tidak ada tabel untuk
+     * ditampilkan, jadi yang digambar adalah pratinjau dokumen atau kartu
+     * unduhan.
+     */
+    private long rowCount;
+    private int colCount;
 }

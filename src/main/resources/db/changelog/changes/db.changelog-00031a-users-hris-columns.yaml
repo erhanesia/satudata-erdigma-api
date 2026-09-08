@@ -1,0 +1,72 @@
+# Menambal lubang yang dibuka pagar seed: dua kolom skema yang ikut terpagar.
+#
+# ---------------------------------------------------------------------------
+# Kenapa ada berkas bernomor "31a"
+#
+# Berkasnya harus berjalan SEBELUM changeset 32, dan `includeAll` mengurutkan
+# berdasarkan nama berkas. "00031a" jatuh setelah "00031-" tetapi sebelum
+# "00032-", jadi inilah satu-satunya cara menyisipkan langkah di antara
+# keduanya tanpa menomori ulang berkas yang sudah terlanjur jalan di mana-mana.
+#
+# ---------------------------------------------------------------------------
+# Masalah yang ditambal
+#
+# Changeset 18 mencampur dua hal dalam satu changeset: ia MENAMBAH kolom
+# `hris_permission_level` dan `job_level` pada `users`, sekaligus menyisipkan
+# pengguna contoh. Ketika seluruh changeset itu dipagari `contextFilter: dev`,
+# kolomnya ikut terpagar.
+#
+# Akibatnya di produksi kedua kolom itu tidak pernah dibuat, lalu changeset 32
+# gagal:
+#
+#   ERROR: column "hris_permission_level" of relation "users" does not exist
+#
+# Dan gagalnya bukan sekadar satu langkah terlewat — Liquibase berhenti, jadi
+# APLIKASI TIDAK BISA START sama sekali. Ini baru ketahuan saat menjalankan
+# seluruh changelog ke database kosong dengan contexts=prod; di laptop tidak
+# akan pernah terlihat, karena di sana changeset 18 memang berjalan.
+#
+# Pelajarannya layak dicatat: changeset yang mencampur skema dan data contoh
+# tidak bisa dipagari sebagai satu kesatuan. Sejak sekarang keduanya dipisah.
+#
+# ---------------------------------------------------------------------------
+# Kenapa memakai preConditions
+#
+# Di laptop dan CI kedua kolom SUDAH ada, dibuat changeset 18. Tanpa penjagaan,
+# changeset ini akan mencoba menambah kolom yang sudah ada dan gagal di sana.
+#
+# `onFail: MARK_RAN` membuatnya dicatat sebagai selesai tanpa menjalankan
+# apa-apa bila kolomnya sudah ada — sehingga satu berkas yang sama benar di
+# database lama maupun database kosong.
+databaseChangeLog:
+  - changeSet:
+      id: "31a"
+      author: author
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - columnExists:
+                tableName: users
+                columnName: hris_permission_level
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: hris_permission_level
+                  type: varchar(30)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: job_level
+                  type: varchar(50)
+                  constraints:
+                    nullable: true
+
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: hris_permission_level
+        - dropColumn:
+            tableName: users
+            columnName: job_level

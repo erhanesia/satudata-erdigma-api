@@ -53,12 +53,44 @@ public class DatasetResource {
     @Fetch(FetchMode.SELECT)
     private Format format;
 
+    /**
+     * Nama versi manusia, mis. "Kamus Kolom". Terpisah dari {@link #fileName}
+     * yang harus tetap apa adanya supaya berkasnya bisa diunduh dengan benar.
+     */
+    private String label;
+
     private String fileName;
     private String contentType;
     private String storageProvider;
     private String storageKey;
     private long sizeBytes;
     private String checksumSha256;
+
+    /**
+     * Berkas inilah yang isinya dibaca menjadi {@code dataset_row}.
+     *
+     * Paling banyak satu per dataset. Tanpa penanda ini, front-end harus
+     * menebak dari jenis berkas — dan tebakannya salah begitu satu dataset
+     * memuat dua spreadsheet.
+     */
+    @Column(name = "is_table_source", nullable = false)
+    private boolean tableSource;
+
+    /**
+     * Ukuran tabel milik berkas ini.
+     *
+     * Disimpan, bukan dihitung saat diminta. Halaman detail perlu tahu berkas
+     * mana yang punya tabel sebelum menggambar apa pun; menghitungnya saat itu
+     * juga berarti satu COUNT per berkas setiap kali halaman dibuka.
+     *
+     * Nol berarti berkasnya tidak punya tabel — PDF, Word, atau spreadsheet
+     * yang isinya gagal dibaca.
+     */
+    @Column(name = "row_count", nullable = false)
+    private long rowCount;
+
+    @Column(name = "col_count", nullable = false)
+    private int colCount;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

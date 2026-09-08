@@ -1,0 +1,114 @@
+# Fitur API key dicabut.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Akses mesin ke portal ini memakai token akun Erdigma yang sama dengan yang
+# dipakai masuk ke halaman. Kunci terpisah tidak menambah apa pun selain satu
+# rahasia lagi yang harus disimpan, dienkripsi, dan dirotasi - lengkap dengan
+# konsekuensi yang sudah tercatat di changeset 22: mengganti kunci enkripsinya
+# membuat SELURUH kunci lama tidak bisa didekripsi lagi.
+#
+# Memakai token yang sama juga menutup satu celah yang belum sempat terbuka.
+# API key punya daftar pemiliknya sendiri, sehingga aturan posisi dan divisi
+# harus ditegakkan dua kali di dua tempat berbeda. Dua tempat berarti suatu
+# hari nanti hanya satu yang diperbarui.
+#
+# ---------------------------------------------------------------------------
+# Yang dihapus
+#
+# Tabel api_key beserta seluruh kolomnya, termasuk key_cipher dan key_nonce
+# dari changeset 22. Isinya lima kunci uji coba lokal; tidak ada kunci
+# sungguhan yang pernah diterbitkan.
+#
+# Changeset 14 dan 22 SENGAJA DIBIARKAN di tempatnya. Keduanya sudah pernah
+# dijalankan, dan membuangnya akan menghapus jejak bahwa tabel ini pernah ada -
+# padahal justru itu yang perlu dibaca orang berikutnya ketika bertanya kenapa
+# nomor changeset melompat.
+databaseChangeLog:
+  - changeSet:
+      id: "39"
+      author: author
+      changes:
+        - dropTable:
+            tableName: api_key
+
+      # Membangun ulang kerangkanya saja. Isi tabelnya tidak bisa dikembalikan
+      # oleh rollback mana pun, dan itu memang tidak masalah: nilai kunci tidak
+      # akan berguna lagi tanpa kode yang memverifikasinya.
+      rollback:
+        - createTable:
+            tableName: api_key
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: key_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: key_prefix
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: key_cipher
+                  type: TEXT
+              - column:
+                  name: key_nonce
+                  type: varchar(64)
+              - column:
+                  name: tier
+                  type: varchar(50)
+                  defaultValue: STANDARD
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rate_limit_per_minute
+                  type: INT
+                  defaultValueNumeric: 5000
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usage_count
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMP

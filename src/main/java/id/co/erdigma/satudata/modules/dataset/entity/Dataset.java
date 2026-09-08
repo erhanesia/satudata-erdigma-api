@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
@@ -15,7 +16,9 @@ import org.springframework.data.annotation.LastModifiedDate;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.division.entity.Division;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -57,6 +60,16 @@ public class Dataset {
     @Fetch(FetchMode.SELECT)
     private Division division;
 
+    /**
+     * Siapa yang mengunggah. Nullable karena dataset seed dan yang terlanjur
+     * diunggah sebelum changeset 00024 tidak memilikinya — panel admin
+     * menampilkannya sebagai "—", bukan menebak.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uploaded_by", nullable = true)
+    @Fetch(FetchMode.SELECT)
+    private id.co.erdigma.satudata.entity.User uploadedBy;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collection_id", nullable = true)
     @Fetch(FetchMode.SELECT)
@@ -69,6 +82,31 @@ public class Dataset {
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "dataset_formats", joinColumns = @JoinColumn(name = "dataset_id"), inverseJoinColumns = @JoinColumn(name = "format_id"))
     private List<Format> formats = new ArrayList<>();
+
+    /**
+     * Aturan "siapa boleh melihat dataset ini".
+     *
+     * Kosong berarti TERBUKA untuk seluruh karyawan. Portal ini katalog data
+     * bersama; membatasi adalah pengecualian yang harus dinyatakan, bukan
+     * keadaan bawaan.
+     *
+     * Berisi aturan berarti dataset terlihat bila SALAH SATU aturannya cocok.
+     * Ketiga jenisnya berdiri sejajar — lihat {@link AccessRule}.
+     *
+     * Sebelum changeset 47 ini berupa {@code List<String> positions} yang
+     * menampung sembilan label karangan dari berkas desain. Label itu mencampur
+     * senioritas dan peran fungsional, dua hal yang di HRIS justru dipisah
+     * tegas, sehingga tidak pernah bisa diisi otomatis dari sana.
+     *
+     * {@code @BatchSize} penting di sini: tanpa itu, menampilkan 50 dataset di
+     * panel admin memicu 50 query tambahan, satu per baris. Dengan itu Hibernate
+     * mengambilnya sekaligus lewat beberapa query IN.
+     */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "dataset_access_rule", joinColumns = @JoinColumn(name = "dataset_id"))
+    @BatchSize(size = 50)
+    @OrderBy("ruleType ASC, ruleValue ASC")
+    private List<AccessRule> accessRules = new ArrayList<>();
 
     @OneToMany(mappedBy = "dataset", fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")

@@ -1,0 +1,54 @@
+# Foto profil karyawan, disalin dari HRIS.
+#
+# ---------------------------------------------------------------------------
+# Apa yang disimpan
+#
+# BUKAN gambarnya, dan bukan pula URL-nya. Yang disimpan path apa adanya seperti
+# yang dikirim HRIS di `employee.profileImage`:
+#
+#     /hris/dev/profile-image/230425-0808.webp
+#
+# Berkasnya sendiri milik HRIS, ada di bucket `erhanesia-files` — bucket yang
+# sama dengan yang dipakai Satu Data, hanya beda prefix. Portal ini tidak pernah
+# menyalin, mengunggah, maupun menghapus foto siapa pun; ia cuma tahu di mana
+# letaknya.
+#
+# ---------------------------------------------------------------------------
+# Kenapa path, bukan URL utuh
+#
+# Perhatikan ruas `dev` di tengah path itu. Di produksi bentuknya `/hris/prod/…`,
+# dan nama bucket serta region-nya pun bisa berubah kalau infrastrukturnya
+# dipindah. Menyimpan URL utuh berarti setiap baris `users` ikut memuat
+# pengetahuan tentang bucket, region, dan tahap — dan seluruhnya harus ditulis
+# ulang massal begitu salah satunya berubah.
+#
+# Path-nya sendiri stabil karena itu yang HRIS simpan di kolomnya sendiri.
+# Penyusunan URL dilakukan back-end saat menjawab, dari satu nilai konfigurasi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa nullable
+#
+# Tidak semua karyawan punya foto. Yang belum mengunggah tetap harus bisa masuk
+# portal, dan antarmuka sudah menampilkan inisial nama sebagai gantinya jauh
+# sebelum kolom ini ada.
+#
+# varchar(255) mengikuti panjang kolom yang sama di `employee` milik hris-api,
+# supaya nilai yang sah di sana tidak pernah terpotong di sini.
+databaseChangeLog:
+  - changeSet:
+      id: "49"
+      author: author
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: profile_image
+                  type: varchar(255)
+                  constraints:
+                    nullable: true
+
+      rollback:
+        - dropColumn:
+            tableName: users
+            columnName: profile_image

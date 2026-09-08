@@ -1,0 +1,59 @@
+# Kolom division.downloads dicabut; angkanya kini dihitung saat diminta.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Tidak ada satu pun kode yang pernah menulis kolom ini. `DownloadService`
+# menaikkan `dataset.downloads` setiap kali berkas diunduh, tetapi tidak pernah
+# menyentuh penghitung tingkat divisi. Kolomnya beku sejak diisi.
+#
+# Selama isinya angka desain - DNA 1.240.000, IT 842.000, dan seterusnya -
+# kematiannya tidak kelihatan: angkanya besar, berbeda antar divisi, dan
+# tampak masuk akal. Changeset 42 mengisinya 0 untuk ke-32 team, dan barulah
+# kenyataannya terlihat. Satu unduhan sungguhan menaikkan angka di panel admin
+# tetapi halaman Divisi tetap 0, karena keduanya membaca kolom yang berbeda.
+#
+# Ini menutup separuh temuan #9 yang tersisa. Separuh pertama, `api_calls`,
+# sudah dicabut di changeset 40 dan memang tidak punya sumber untuk dihitung;
+# unduhan punya, jadi kolomnya bisa hilang tanpa kehilangan apa pun.
+#
+# ---------------------------------------------------------------------------
+# Sumber penggantinya
+#
+# `SUM(dataset.downloads)` milik divisi itu, bukan `COUNT(download_log)`.
+#
+# Keduanya menghasilkan angka yang sama untuk unduhan, tetapi `download_log`
+# juga memuat baris pratinjau bertanda `access_type = PREVIEW`, sehingga
+# menghitungnya perlu penyaringan yang gampang terlupa saat query disalin ke
+# tempat lain. `dataset.downloads` sudah berarti "unduhan, bukan pratinjau",
+# dan itu pula angka yang ditampilkan panel admin - jadi kedua halaman dijamin
+# menyebut bilangan yang sama.
+#
+# ---------------------------------------------------------------------------
+# Yang ikut berubah
+#
+# Urutan halaman Divisi kini mengikuti hitungan itu, bukan kolom tersimpan.
+# Divisi yang datanya benar-benar sering diunduh akan naik dengan sendirinya -
+# sesuatu yang tidak mungkin terjadi selama peringkatnya ditentukan angka beku.
+databaseChangeLog:
+  - changeSet:
+      id: "43"
+      author: author
+      changes:
+        - dropColumn:
+            tableName: division
+            columnName: downloads
+
+      # Kerangkanya saja, dan isinya sengaja 0. Mengembalikan angka desain
+      # berarti mengembalikan masalahnya; nol setidaknya jujur menyatakan
+      # bahwa kolom ini tidak tahu apa-apa.
+      rollback:
+        - addColumn:
+            tableName: division
+            columns:
+              - column:
+                  name: downloads
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

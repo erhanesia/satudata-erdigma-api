@@ -41,6 +41,23 @@ public class DownloadLog {
     private String fileName;
     private long sizeBytes;
 
+    /**
+     * DOWNLOAD atau PREVIEW. Dibedakan karena pratinjau tidak melewati modal
+     * persetujuan — menyamakan keduanya membuat kolom persetujuan berbunyi
+     * "tidak" pada ratusan baris dan terbaca seolah orang mengunduh tanpa
+     * menyetujui apa pun.
+     */
+    @Column(name = "access_type", nullable = false, length = 20)
+    private String accessType = "DOWNLOAD";
+
+    /**
+     * WEB atau API. Disimpan, bukan ditulis tetap di antarmuka — begitu jalur
+     * kunci mesin aktif, kolom yang dikarang akan tetap berbunyi "Web" untuk
+     * unduhan yang sebenarnya lewat mesin.
+     */
+    @Column(name = "channel", nullable = false, length = 20)
+    private String channel = "WEB";
+
     private boolean agreementAccepted;
     private String ipAddress;
     private String userAgent;

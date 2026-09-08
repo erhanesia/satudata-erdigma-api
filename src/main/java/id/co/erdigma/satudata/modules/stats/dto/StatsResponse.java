@@ -27,4 +27,19 @@ public class StatsResponse {
     private long totalApiCalls;
     private long totalViews;
     private long totalDatasetWithFile;
+
+    /**
+     * Berapa ORANG yang pernah menerbitkan dataset — bukan berapa dataset yang
+     * punya pemilik. Kartu "Kontributor" di dasbor admin.
+     */
+    private long totalContributor;
+
+    /**
+     * Karyawan yang barisnya belum di-soft-delete. BUKAN "yang aktif belakangan
+     * ini": portal ini stateless dan tidak menyimpan waktu kunjungan terakhir.
+     */
+    private long totalActiveUser;
+
+    /** Unduhan 30 hari terakhir, dihitung dari download_log. */
+    private long totalDownloads30d;
 }

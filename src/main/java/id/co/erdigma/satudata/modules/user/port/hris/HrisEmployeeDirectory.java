@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +39,7 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
      * Kalau kesegaran data jadi masalah, jawabannya webhook atau tugas
      * terjadwal dari HRIS — bukan memperkecil ambang ini.
      */
-    private static final Duration SEGAR = Duration.ofHours(12);
+    private static final Duration FRESH_FOR = Duration.ofHours(12);
 
     private final UserRepository userRepository;
     private final DivisionRepository divisionRepository;
@@ -49,11 +48,10 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
     public HrisEmployeeDirectory(
             UserRepository userRepository,
             DivisionRepository divisionRepository,
-            RestClient.Builder builder,
-            @Value("${hris.base-url}") String baseUrl) {
+            RestClient hrisRestClient) {
         this.userRepository = userRepository;
         this.divisionRepository = divisionRepository;
-        this.hris = builder.baseUrl(baseUrl).build();
+        this.hris = hrisRestClient;
     }
 
     /**
@@ -70,14 +68,14 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
     @Override
     @Transactional
     public Optional<User> findByCognitoId(String cognitoId, String accessToken) {
-        Optional<User> lokal = userRepository.findByCognitoId(cognitoId);
-        if (lokal.isPresent() && masihSegar(lokal.get())) {
-            return lokal;
+        Optional<User> local = userRepository.findByCognitoId(cognitoId);
+        if (local.isPresent() && isFresh(local.get())) {
+            return local;
         }
 
-        HrisMeResponse jawaban;
+        HrisMeResponse response;
         try {
-            jawaban = hris.get()
+            response = hris.get()
                     .uri("/user/me")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .retrieve()
@@ -93,50 +91,72 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
             // yang basi tetap dipakai: memutus seluruh portal karena sistem
             // tetangga sedang tumbang adalah hukuman yang tidak sebanding.
             log.warn("hris-api tidak dapat dihubungi ({}). Memakai baris lokal bila ada.", e.getMessage());
-            return lokal;
+            return local;
         }
 
         // Akun ADMIN di HRIS boleh tidak punya baris employee — akun IT
         // misalnya. Menolaknya berarti orang yang paling berhak mengelola
         // portal ini justru satu-satunya yang tidak bisa masuk.
-        boolean adminHris = jawaban != null && "ADMIN".equals(jawaban.getRole());
-        if (jawaban == null || (jawaban.getEmployee() == null && !adminHris)) {
+        boolean adminHris = response != null && "ADMIN".equals(response.getRole());
+        if (response == null || (response.getEmployee() == null && !adminHris)) {
             log.warn("Balasan /user/me tanpa data karyawan untuk cognitoId {}", cognitoId);
             return Optional.empty();
         }
 
-        return Optional.of(upsert(lokal.orElse(null), cognitoId, jawaban));
+        return Optional.of(upsert(local.orElse(null), cognitoId, response));
     }
 
-    private boolean masihSegar(User user) {
+    private boolean isFresh(User user) {
         return user.getUpdatedAt() != null
-                && user.getUpdatedAt().isAfter(LocalDateTime.now().minus(SEGAR));
+                && user.getUpdatedAt().isAfter(LocalDateTime.now().minus(FRESH_FOR));
     }
 
-    private User upsert(User lama, String cognitoId, HrisMeResponse jawaban) {
-        User user = (lama != null) ? lama : new User();
-        if (lama == null) {
+    private User upsert(User existing, String cognitoId, HrisMeResponse response) {
+        User user = (existing != null) ? existing : new User();
+        if (existing == null) {
             // cognitoId adalah identitas baris ini dan tidak pernah diubah lagi.
             user.setCognitoId(cognitoId);
         }
 
-        HrisMeResponse.Employee employee = jawaban.getEmployee();
+        // employee boleh null di sini — hanya untuk akun ADMIN HRIS, yang
+        // dilewatkan guard di atas. Setiap pembacaannya di bawah dijaga.
+        HrisMeResponse.Employee employee = response.getEmployee();
         String jobLevel = (employee != null) ? employee.getJobLevel() : null;
         String position = (employee != null && employee.getPosition() != null)
                 ? employee.getPosition().getName()
                 : null;
 
-        user.setEmail(jawaban.getEmail());
+        user.setEmail(response.getEmail());
         // Tanpa baris employee, HRIS tidak punya nama orang ini. Bagian depan
         // email jauh lebih berguna di daftar pengguna daripada kolom kosong.
-        user.setName((employee != null) ? employee.getName() : namaDariEmail(jawaban.getEmail()));
+        user.setName((employee != null) ? employee.getName() : namaDariEmail(response.getEmail()));
         user.setJobLevel(jobLevel);
         user.setPosition(position);
+
+        // Ditimpa setiap kali disegarkan, termasuk saat HRIS mengirim null.
+        // Karyawan yang menghapus fotonya di HRIS harus ikut kehilangan fotonya
+        // di sini — kalau nilai lama dipertahankan, portal ini akan terus
+        // menampilkan foto yang sudah sengaja dicabut orangnya.
+        user.setProfileImage((employee != null) ? employee.getProfileImage() : null);
+
+        // Kedua pengenal ini yang dipakai DatasetAccessGuard mencocokkan aturan
+        // POSITION dan EMPLOYEE. Namanya sudah disimpan di atas untuk
+        // ditampilkan, tetapi pencocokan memakai UUID: nama posisi di HRIS
+        // memuat salah ketik yang suatu saat diperbaiki, dan pembatasan berbasis
+        // nama akan putus diam-diam begitu itu terjadi.
+        //
+        // Akun admin HRIS tanpa baris employee tidak punya keduanya, dan itu
+        // memang benar: orang seperti itu bukan karyawan, jadi tidak ada aturan
+        // akses berbasis posisi atau karyawan yang wajar mencocokkinya.
+        user.setHrisPositionId((employee != null && employee.getPosition() != null)
+                ? employee.getPosition().getId()
+                : null);
+        user.setHrisEmployeeId((employee != null) ? employee.getId() : null);
 
         // Tingkat izin SELALU apa kata HRIS — inilah yang membedakan admin
         // warisan dari admin tunjukan, jadi override tidak boleh menyentuhnya.
         HrisPermissionLevel level = HrisRoleMapper.permissionLevel(
-                jawaban.getRole(), jobLevel, position);
+                response.getRole(), jobLevel, position);
         user.setHrisPermissionLevel(level);
 
         // Peran efektif: tunjukan manusia menang atas hitungan HRIS.
@@ -144,24 +164,25 @@ public class HrisEmployeeDirectory implements EmployeeDirectory {
                 ? user.getRoleOverride()
                 : HrisRoleMapper.role(level));
 
-        UUID departementId = (employee != null && employee.getDepartement() != null)
-                ? employee.getDepartement().getId()
-                : null;
-        if (departementId != null) {
-            // Divisi hanya ditimpa kalau padanannya ketemu. Kolom
-            // division.hris_departement_id masih null untuk kedelapan divisi
-            // seed, jadi untuk sementara pengguna baru berdivisi null — itu
-            // sudah nullable di sepanjang MeService, CurrentUserService, dan
-            // UserResponse. Efeknya kelihatan langsung di panel manajemen
-            // pengguna: kolom "Divisi" akan tampil "—" untuk semua baris
-            // sampai seed-nya diisi.
-            divisionRepository.findByHrisDepartementIdAndDeletedAtIsNull(departementId)
+        UUID teamId = (employee != null && employee.getTeam() != null) ? employee.getTeam().getId() : null;
+        if (teamId != null) {
+            // Divisi hanya ditimpa kalau padanannya ketemu, sehingga divisi yang
+            // sudah disetel tangan tidak hilang gara-gara satu team baru di HRIS
+            // yang belum ada di tabel `division`.
+            //
+            // Sebelum changeset 41 yang dicocokkan di sini `departement`, dan
+            // padanannya TIDAK PERNAH ketemu karena kolomnya kosong untuk
+            // kedelapan divisi desain. Akibatnya setiap pengguna Cognito
+            // berdivisi null, dan karena itu tidak bisa menerbitkan dataset
+            // sama sekali — DatasetUploadService menolaknya karena tidak ada
+            // yang bisa dicatat sebagai penerbit.
+            divisionRepository.findByHrisTeamIdAndDeletedAtIsNull(teamId)
                     .ifPresent(user::setDivision);
         }
 
         // Diisi manual: entitas memakai @LastModifiedDate tetapi tidak memasang
         // AuditingEntityListener, jadi nilainya tidak pernah bergerak sendiri —
-        // dan masihSegar() di atas bergantung padanya.
+        // dan isFresh() di atas bergantung padanya.
         user.setUpdatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
