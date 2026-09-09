@@ -77,11 +77,11 @@ class DownloadLogCsvExportTest {
         row.setIpAddress("10.0.0.1");
 
         Page<DownloadLog> page = new PageImpl<>(List.of(row));
-        when(downloadLogRepository.findAllByDownloadedAtBetweenOrderByDownloadedAtDesc(
-                any(LocalDateTime.class), any(LocalDateTime.class), any(Pageable.class)))
+        when(downloadLogRepository.search(
+                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(Pageable.class)))
                 .thenReturn(page);
 
-        return service.exportCsv(null, null, null);
+        return service.exportCsv(null, null, null, null);
     }
 
     /** Baris isi, yaitu seluruh keluaran dikurangi baris kepala kolom. */
@@ -172,14 +172,14 @@ class DownloadLogCsvExportTest {
     @Test
     @DisplayName("baris kepala kolom tetap ditulis meski tidak ada satu pun baris log")
     void writesHeaderOnEmptyResult() {
-        when(downloadLogRepository.findAllByDownloadedAtBetweenOrderByDownloadedAtDesc(
-                any(LocalDateTime.class), any(LocalDateTime.class), any(Pageable.class)))
+        when(downloadLogRepository.search(
+                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        String csv = service.exportCsv(null, null, null);
+        String csv = service.exportCsv(null, null, null, null);
 
         assertThat(csv).isEqualTo(
-                "waktu,jenis_akses,nama,email,divisi,dataset,berkas,ukuran_byte,channel,persetujuan,ip\n");
+                "waktu,jenis_akses,nama,email,divisi,dataset,berkas,format,ukuran_byte,channel,persetujuan,ip\n");
     }
 
     @Test

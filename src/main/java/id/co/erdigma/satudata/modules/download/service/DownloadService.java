@@ -16,8 +16,6 @@ import id.co.erdigma.satudata.modules.dataset.helper.DatasetAccessGuard;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
 import id.co.erdigma.satudata.modules.download.dto.DownloadPayload;
-import id.co.erdigma.satudata.modules.download.entity.DownloadLog;
-import id.co.erdigma.satudata.modules.download.repository.DownloadLogRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
 import id.co.erdigma.satudata.service.storage.LocalFileStorage;
 
@@ -41,16 +39,16 @@ public class DownloadService {
     @Autowired
     private DatasetResourceRepository datasetResourceRepository;
     @Autowired
-    private DownloadLogRepository downloadLogRepository;
+    private AccessLogService accessLogService;
     @Autowired
     private FileStorage fileStorage;
     @Autowired
     private DatasetAccessGuard accessGuard;
 
     @Transactional
-    public DownloadPayload download(User user, String slug, boolean agreement,
+    public DownloadPayload download(User user, String slug, boolean agreement, UUID actionId,
             String ipAddress, String userAgent) {
-        return download(user, slug, null, agreement, ipAddress, userAgent);
+        return download(user, slug, null, agreement, actionId, ipAddress, userAgent);
     }
 
     /**
@@ -66,7 +64,7 @@ public class DownloadService {
      * menjawab pertanyaan "siapa yang mengambil berkas gaji itu".
      */
     @Transactional
-    public DownloadPayload download(User user, String slug, UUID resourceId, boolean agreement,
+    public DownloadPayload download(User user, String slug, UUID resourceId, boolean agreement, UUID actionId,
             String ipAddress, String userAgent) {
 
         Dataset dataset = datasetRepository.findBySlugAndDeletedAtIsNull(slug)
@@ -126,20 +124,20 @@ public class DownloadService {
                             + ". Hubungi admin untuk memindahkan berkas ke penyimpanan aktif.");
         }
 
-        DownloadLog logEntry = new DownloadLog();
-        logEntry.setCognitoId(user.getCognitoId());
-        logEntry.setUserName(user.getName());
-        logEntry.setUserEmail(user.getEmail());
-        logEntry.setDivisionCode(user.getDivision() != null ? user.getDivision().getCode() : null);
-        logEntry.setDatasetId(dataset.getId());
-        logEntry.setDatasetSlug(dataset.getSlug());
-        logEntry.setResourceId(resource.getId());
-        logEntry.setFileName(resource.getFileName());
-        logEntry.setSizeBytes(resource.getSizeBytes());
-        logEntry.setAgreementAccepted(true);
-        logEntry.setIpAddress(ipAddress);
-        logEntry.setUserAgent(userAgent);
-        downloadLogRepository.save(logEntry);
+        /*
+          Penyusunan barisnya dipindahkan ke AccessLogService, dan bukan sekadar
+          demi kerapian.
+
+          Satu penekanan tombol Unduh pada dataset berisi tiga berkas memanggil
+          endpoint ini TIGA KALI, karena satu permintaan hanya bisa mengalirkan
+          satu berkas. Dulu itu menulis tiga baris log untuk satu peristiwa.
+          Sekarang panggilan yang berdekatan digabung menjadi satu baris yang
+          menyebut seluruh formatnya.
+
+          Dari sini tidak ada yang berubah: tetap dipanggil sekali per berkas,
+          dan yang memutuskan digabung atau tidak ada di sana.
+        */
+        accessLogService.recordDownload(user, dataset, resource, actionId, ipAddress, userAgent);
 
         dataset.setDownloads(dataset.getDownloads() + 1);
         datasetRepository.save(dataset);

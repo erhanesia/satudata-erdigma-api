@@ -26,7 +26,6 @@ import id.co.erdigma.satudata.modules.dataset.helper.DatasetAccessGuard;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
-import id.co.erdigma.satudata.modules.download.repository.DownloadLogRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
 
 /**
@@ -38,7 +37,7 @@ class DownloadServiceTest {
 
     private final DatasetRepository datasetRepository = mock(DatasetRepository.class);
     private final DatasetResourceRepository datasetResourceRepository = mock(DatasetResourceRepository.class);
-    private final DownloadLogRepository downloadLogRepository = mock(DownloadLogRepository.class);
+    private final AccessLogService accessLogService = mock(AccessLogService.class);
     private final FileStorage fileStorage = mock(FileStorage.class);
     /*
      * Penjaga akses ditambahkan bersama pembatasan dataset per posisi jabatan.
@@ -55,7 +54,7 @@ class DownloadServiceTest {
     void wireFields() {
         ReflectionTestUtils.setField(downloadService, "datasetRepository", datasetRepository);
         ReflectionTestUtils.setField(downloadService, "datasetResourceRepository", datasetResourceRepository);
-        ReflectionTestUtils.setField(downloadService, "downloadLogRepository", downloadLogRepository);
+        ReflectionTestUtils.setField(downloadService, "accessLogService", accessLogService);
         ReflectionTestUtils.setField(downloadService, "fileStorage", fileStorage);
         ReflectionTestUtils.setField(downloadService, "accessGuard", accessGuard);
     }
@@ -85,13 +84,13 @@ class DownloadServiceTest {
         siapkanResource(dataset, resource);
         when(fileStorage.getProviderName()).thenReturn("S3");
 
-        assertThatThrownBy(() -> downloadService.download(new User(), "contoh", true, "127.0.0.1", "agent"))
+        assertThatThrownBy(() -> downloadService.download(new User(), "contoh", true, null, "127.0.0.1", "agent"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("LOCAL")
                 .hasMessageContaining("S3");
 
         // Yang gagal dibuka jangan sampai tercatat sudah diunduh.
-        verifyNoInteractions(downloadLogRepository);
+        verifyNoInteractions(accessLogService);
         verify(datasetRepository, never()).save(any());
         verify(fileStorage, never()).open(any());
     }
@@ -108,10 +107,10 @@ class DownloadServiceTest {
         InputStream isi = new ByteArrayInputStream("a".getBytes());
         when(fileStorage.open(any())).thenReturn(isi);
 
-        assertThat(downloadService.download(new User(), "lawas", true, "127.0.0.1", "agent").getContent())
+        assertThat(downloadService.download(new User(), "lawas", true, null, "127.0.0.1", "agent").getContent())
                 .isSameAs(isi);
 
-        verify(downloadLogRepository).save(any());
+        verify(accessLogService).recordDownload(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -126,9 +125,9 @@ class DownloadServiceTest {
         InputStream isi = new ByteArrayInputStream("a".getBytes());
         when(fileStorage.open(any())).thenReturn(isi);
 
-        assertThat(downloadService.download(new User(), "lawas-spasi", true, "127.0.0.1", "agent").getContent())
+        assertThat(downloadService.download(new User(), "lawas-spasi", true, null, "127.0.0.1", "agent").getContent())
                 .isSameAs(isi);
 
-        verify(downloadLogRepository).save(any());
+        verify(accessLogService).recordDownload(any(), any(), any(), any(), any(), any());
     }
 }

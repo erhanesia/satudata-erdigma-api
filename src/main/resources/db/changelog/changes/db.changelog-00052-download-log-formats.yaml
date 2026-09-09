@@ -1,0 +1,63 @@
+# Log akses berhenti mencatat per berkas, mulai mencatat per peristiwa.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Satu penekanan tombol Unduh pada dataset berisi tiga berkas menulis TIGA
+# baris log, satu per berkas. Yang terjadi sebenarnya satu peristiwa: satu
+# orang, satu dataset, satu keputusan. Tabelnya membengkak tiga kali lipat
+# untuk menceritakan hal yang sama, dan yang membacanya harus menyatukan
+# sendiri baris-baris berstempel waktu berdekatan untuk tahu apa yang terjadi.
+#
+# Kolom baru `formats` yang membuat penggabungan itu mungkin: satu baris bisa
+# menyebut lebih dari satu format, misalnya "CSV, DOCX".
+#
+# ---------------------------------------------------------------------------
+# Kenapa kolom baru, bukan menghitungnya dari `berkas`
+#
+# Nama berkas tidak selalu berujung ekstensi yang benar, dan format sebenarnya
+# sudah disimpan tersendiri di tabel `format` sejak changeset 8. Menyimpulkan
+# format dari nama berkas berarti menebak sesuatu yang sudah diketahui.
+#
+# ---------------------------------------------------------------------------
+# Kenapa indeksnya perlu
+#
+# Dua aturan baru sama-sama bertanya "apakah sudah ada baris seperti ini":
+# pembukaan dataset dibatasi satu per hari per orang per dataset, dan unduhan
+# dalam satu aksi digabung ke baris yang sudah ada. Keduanya menyaring dengan
+# cognito_id, dataset_id, access_type, dan rentang waktu sekaligus, pada tabel
+# yang di produksi sudah puluhan ribu baris dan hanya akan tumbuh.
+#
+# Tanpa indeks ini, setiap pembukaan dataset memindai seluruh tabel.
+databaseChangeLog:
+  - changeSet:
+      id: "52"
+      author: author
+      changes:
+        - addColumn:
+            tableName: download_log
+            columns:
+              - column:
+                  name: formats
+                  type: VARCHAR(200)
+                  remarks: >-
+                    Format berkas dalam peristiwa ini, dipisah koma. Kosong
+                    untuk baris pembukaan dataset, yang memang tidak menyentuh
+                    berkas mana pun.
+
+        - createIndex:
+            tableName: download_log
+            indexName: download_log_actor_dataset_index
+            columns:
+              - column: { name: cognito_id }
+              - column: { name: dataset_id }
+              - column: { name: access_type }
+              - column: { name: downloaded_at }
+
+      rollback:
+        - dropIndex:
+            tableName: download_log
+            indexName: download_log_actor_dataset_index
+        - dropColumn:
+            tableName: download_log
+            columnName: formats

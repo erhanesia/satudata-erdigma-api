@@ -19,8 +19,20 @@ public class DownloadLogResponse {
     private String userEmail;
     private String divisionCode;
     private String datasetSlug;
+    /** Untuk baris gabungan, seluruh nama berkas dipisah titik koma. */
     private String fileName;
+
+    /** Untuk baris gabungan, jumlah ukuran seluruh berkasnya. */
     private long sizeBytes;
+
+    /**
+     * Format berkas dalam peristiwa ini, dipisah koma, misalnya "CSV, DOCX".
+     *
+     * Kosong pada baris pembukaan dataset, yang memang tidak menyentuh berkas
+     * mana pun. Kosong juga pada baris lama yang ditulis sebelum kolom ini
+     * ada; antarmuka menyimpulkannya dari nama berkas untuk baris seperti itu.
+     */
+    private String formats;
     /** DOWNLOAD atau PREVIEW. */
     private String accessType;
 

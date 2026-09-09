@@ -24,8 +24,6 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
 import id.co.erdigma.satudata.modules.download.dto.DocumentTextResponse;
 import id.co.erdigma.satudata.modules.download.dto.DownloadPayload;
-import id.co.erdigma.satudata.modules.download.entity.DownloadLog;
-import id.co.erdigma.satudata.modules.download.repository.DownloadLogRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
 import id.co.erdigma.satudata.service.storage.LocalFileStorage;
 
@@ -75,7 +73,7 @@ public class PreviewService {
     @Autowired
     private DatasetResourceRepository datasetResourceRepository;
     @Autowired
-    private DownloadLogRepository downloadLogRepository;
+    private AccessLogService accessLogService;
     @Autowired
     private DatasetAccessGuard accessGuard;
     @Autowired
@@ -190,25 +188,21 @@ public class PreviewService {
         return resource;
     }
 
+    /**
+     * Mencatat bahwa datasetnya dibuka, BUKAN bahwa berkas ini diambil.
+     *
+     * Dulu tiap pengambilan berkas menulis barisnya sendiri, sehingga membuka
+     * satu dataset berisi PDF tercatat sedangkan membuka dataset berisi CSV
+     * tidak, padahal tindakan penggunanya sama. Yang membedakan cuma pipa yang
+     * kebetulan dipakai penggambarnya, dan itu detail teknis yang bocor menjadi
+     * kebijakan audit.
+     *
+     * Sekarang seluruh jalur menuju satu tempat, dan pembatasan harian di sana
+     * membuat pemanggilan berulang tidak berakibat apa-apa.
+     */
     private void recordAccess(User user, DatasetResource resource, String ipAddress,
             String userAgent) {
-        DownloadLog entry = new DownloadLog();
-        entry.setAccessType("PREVIEW");
-        entry.setCognitoId(user.getCognitoId());
-        entry.setUserName(user.getName());
-        entry.setUserEmail(user.getEmail());
-        entry.setDivisionCode(user.getDivision() != null ? user.getDivision().getCode() : null);
-        entry.setDatasetId(resource.getDataset().getId());
-        entry.setDatasetSlug(resource.getDataset().getSlug());
-        entry.setResourceId(resource.getId());
-        entry.setFileName(resource.getFileName());
-        entry.setSizeBytes(resource.getSizeBytes());
-        // Pratinjau memang tidak melewati modal persetujuan. Nilainya false
-        // apa adanya, dan access_type yang menjelaskan sebabnya.
-        entry.setAgreementAccepted(false);
-        entry.setIpAddress(ipAddress);
-        entry.setUserAgent(userAgent);
-        downloadLogRepository.save(entry);
+        accessLogService.recordOpen(user, resource.getDataset(), ipAddress, userAgent);
     }
 
     private String formatName(DatasetResource resource) {

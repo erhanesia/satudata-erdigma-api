@@ -1,0 +1,59 @@
+# Penanda aksi unduh, supaya penggabungan berhenti menebak.
+#
+# ---------------------------------------------------------------------------
+# Kenapa changeset tersendiri, bukan disatukan ke 52
+#
+# Changeset 52 sudah dijalankan di basis data pengembang. Mengubahnya berarti
+# mengubah checksum yang sudah tercatat, dan Liquibase menolak berjalan sama
+# sekali kalau itu terjadi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa perlu
+#
+# Changeset 52 menyatukan berkas-berkas dalam satu aksi unduh menjadi satu
+# baris, dan yang dipakai menentukan "satu aksi" adalah KEDEKATAN WAKTU.
+# Tebakan itu salah di kedua arah.
+#
+# Front-end mengunduh berurutan: ia menunggu satu berkas selesai sebelum
+# meminta berikutnya. Jadi jarak antar permintaan sama dengan lamanya
+# mengunduh, dan pada berkas ratusan megabita jaraknya puluhan detik. Jendela
+# yang pendek memecah satu aksi menjadi banyak baris.
+#
+# Jendela yang panjang menghasilkan kebalikannya, dan ini yang benar-benar
+# terjadi: unduhan berikutnya yang disengaja ikut terserap ke baris sebelumnya.
+# Satu baris sempat memuat empat berkas dari tiga aksi berbeda, dan karena
+# formatnya sudah tercatat, di layar seolah tidak terjadi apa-apa.
+#
+# Penandanya dibuat front-end sekali per penekanan tombol, lalu dikirim pada
+# tiap permintaan berkas. Tidak ada lagi yang perlu ditebak.
+databaseChangeLog:
+  - changeSet:
+      id: "53"
+      author: author
+      changes:
+        - addColumn:
+            tableName: download_log
+            columns:
+              - column:
+                  name: action_id
+                  type: UUID
+                  remarks: >-
+                    Penanda satu aksi unduh, dibuat pemanggil. Beberapa berkas
+                    yang diunduh dalam satu penekanan tombol memakai penanda
+                    yang sama dan menjadi satu baris. Kosong untuk pemanggil
+                    yang tidak menyertakannya, dan untuk baris pembukaan
+                    dataset.
+
+        - createIndex:
+            tableName: download_log
+            indexName: download_log_action_index
+            columns:
+              - column: { name: action_id }
+
+      rollback:
+        - dropIndex:
+            tableName: download_log
+            indexName: download_log_action_index
+        - dropColumn:
+            tableName: download_log
+            columnName: action_id
