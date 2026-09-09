@@ -1,0 +1,65 @@
+# Topik "Geospasial" dibuang dari taksonomi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Delapan topik di changeset 8 disalin dari berkas desain, bukan dari daftar
+# yang benar-benar dipakai Erdigma. Geospasial satu-satunya yang tidak pernah
+# menemukan pemakainya: yang memakainya cuma satu dataset, dan dataset itu pun
+# dataset contoh hasil seed changeset 9, bukan terbitan siapa pun.
+#
+# Taksonomi yang memuat pilihan tanpa isi bukan sekadar kosong. Ia muncul di
+# penyaring dan di formulir terbit, jadi setiap penerbit membacanya sebagai
+# kategori yang sah dan sebagian akan memaksakan datasetnya ke sana.
+#
+# ---------------------------------------------------------------------------
+# Kenapa dua langkah, dan kenapa urutannya begini
+#
+# `dataset_topics_to_topic` tidak punya ON DELETE apa pun. Selama masih ada
+# baris kaitan yang menunjuk topik ini, barisnya tidak bisa disentuh sama
+# sekali. Jadi kaitannya dulu, topiknya belakangan.
+#
+# Kaitannya dicari lewat NAMA topik, bukan id dataset yang ditulis di sini.
+# Yang di laptop memang cuma satu dataset contoh, tetapi produksi berumur
+# lebih panjang dan bisa saja ada penerbit yang sempat memakainya. Menulis id
+# dataset di sini berarti membersihkan laptop dan meninggalkan produksi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa topiknya di-soft delete, bukan dihapus betulan
+#
+# Seluruh kode ini membaca topik lewat `findAllByDeletedAtIsNullOrderBySort
+# OrderAsc`. Menyetel `deleted_at` sudah cukup membuatnya lenyap dari mana pun
+# ia bisa dilihat atau dipilih: daftar `GET /topics`, penyaring di katalog,
+# dan formulir tambah maupun sunting dataset.
+#
+# Menghapus barisnya betulan tidak menambah apa pun yang terlihat pengguna,
+# tetapi menjadikan tabel acuan ini satu-satunya yang diperlakukan berbeda
+# dari seluruh tabel acuan lain di skema ini.
+#
+# Yang HARUS dihapus betulan justru baris kaitannya, karena `toTopicNames`
+# memetakan seluruh topik yang menempel pada dataset tanpa menyaring
+# `deleted_at`. Kalau kaitannya ditinggal, chip "Geospasial" tetap tergambar
+# di halaman dataset padahal topiknya sudah tidak ada di daftar mana pun.
+databaseChangeLog:
+  - changeSet:
+      id: "51"
+      author: author
+      changes:
+        - delete:
+            tableName: dataset_topics
+            where: "topic_id IN (SELECT id FROM topic WHERE name = 'Geospasial')"
+
+        - update:
+            tableName: topic
+            columns:
+              - column: { name: deleted_at, valueComputed: "now()" }
+            where: "name = 'Geospasial' AND deleted_at IS NULL"
+
+      # Topiknya sendiri memang bisa dihidupkan lagi dengan mengosongkan
+      # `deleted_at`. Kaitannya tidak: dataset mana saja yang dulu memakainya
+      # sudah tidak tercatat di mana pun setelah barisnya dibuang.
+      #
+      # Rollback yang cuma memulihkan separuh lebih buruk daripada tidak ada,
+      # karena ia terbaca seolah keadaannya sudah kembali seperti semula.
+      rollback:
+        - empty
