@@ -3,6 +3,7 @@ package id.co.erdigma.satudata.modules.download.repository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -18,14 +19,86 @@ import id.co.erdigma.satudata.modules.download.projection.DailyDownloadCount;
 @Repository
 public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> {
 
-    Page<DownloadLog> findAllByOrderByDownloadedAtDesc(Pageable pageable);
-
     Page<DownloadLog> findAllByDatasetIdOrderByDownloadedAtDesc(UUID datasetId, Pageable pageable);
 
     Page<DownloadLog> findAllByCognitoIdOrderByDownloadedAtDesc(String cognitoId, Pageable pageable);
 
-    Page<DownloadLog> findAllByDownloadedAtBetweenOrderByDownloadedAtDesc(
-            LocalDateTime dari, LocalDateTime sampai, Pageable pageable);
+    /**
+     * Baris milik satu aksi unduh, bila sudah ada.
+     *
+     * Penandanya datang dari pemanggil, jadi pencariannya DIBATASI pada orang
+     * dan dataset yang sama juga. Tanpa itu, penanda yang ditebak atau dipakai
+     * ulang bisa menempelkan unduhan seseorang ke baris milik orang lain.
+     */
+    Optional<DownloadLog> findFirstByActionIdAndCognitoIdAndDatasetId(
+            UUID actionId, String cognitoId, UUID datasetId);
+
+    /**
+     * Peristiwa terakhir orang ini pada dataset ini sejak waktu tertentu.
+     *
+     * <h2>Satu method untuk dua aturan yang kelihatannya berbeda</h2>
+     *
+     * Pembatasan pembukaan dataset dan penggabungan unduhan sama-sama bertanya
+     * hal yang sama: <b>adakah peristiwa sejenis dari orang yang sama pada
+     * dataset yang sama, belum lama ini.</b> Yang membedakan hanya arti "belum
+     * lama": sejak awal hari untuk yang pertama, sejak beberapa detik lalu
+     * untuk yang kedua.
+     *
+     * Karena itu batas waktunya diserahkan ke pemanggil, dan aturan yang
+     * ketiga nanti tidak perlu menambah method lagi.
+     *
+     * <h2>Kenapa mengembalikan List, bukan Optional</h2>
+     *
+     * Pemanggilnya menyertakan {@code PageRequest.of(0, 1)}, jadi isinya nol
+     * atau satu. Bentuk ini dipilih karena batas baris lewat Pageable berlaku
+     * di semua versi Spring Data, sedangkan LIMIT di dalam JPQL bergantung
+     * pada versi penyedia JPA-nya.
+     */
+    @Query("""
+            SELECT l FROM DownloadLog l
+            WHERE l.cognitoId = :cognitoId
+              AND l.datasetId = :datasetId
+              AND l.accessType = :accessType
+              AND l.downloadedAt >= :since
+            ORDER BY l.downloadedAt DESC
+            """)
+    List<DownloadLog> findRecent(@Param("cognitoId") String cognitoId,
+            @Param("datasetId") UUID datasetId,
+            @Param("accessType") String accessType,
+            @Param("since") LocalDateTime since,
+            Pageable pageable);
+
+    /**
+     * Satu pintu untuk halaman Log dan untuk ekspor CSV-nya.
+     *
+     * <h2>Kenapa satu query, bukan beberapa nama method</h2>
+     *
+     * Sebelumnya penyaringnya dua method terpisah, satu untuk "tanpa tanggal"
+     * dan satu untuk "dalam rentang". Dua keadaan, dua method. Menambah satu
+     * penyaring lagi membuatnya jadi empat, penyaring berikutnya delapan, dan
+     * nama method-nya memanjang mengikuti setiap kombinasi.
+     *
+     * Dengan parameter yang boleh kosong, keadaan sebanyak apa pun tetap satu
+     * query, dan penyaring berikutnya cukup menambah satu baris di WHERE.
+     *
+     * <h2>Rentangnya selalu ada, meski penanggalannya tidak diisi</h2>
+     *
+     * Pemanggilnya yang mengisi batas terbuka dengan nilai selebar-lebarnya,
+     * jadi di sini tidak perlu ada cabang "kalau tanggalnya kosong". Yang
+     * benar-benar boleh kosong hanya {@code accessType}, dan kosong di situ
+     * berarti "semua jenis akses", bukan "tidak ada satu pun".
+     */
+    @Query("""
+            SELECT l FROM DownloadLog l
+            WHERE l.downloadedAt >= :start
+              AND l.downloadedAt < :end
+              AND (:accessType IS NULL OR l.accessType = :accessType)
+            ORDER BY l.downloadedAt DESC
+            """)
+    Page<DownloadLog> search(@Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("accessType") String accessType,
+            Pageable pageable);
 
     /**
      * Isi kartu "Download 30 hari" di dasbor admin.

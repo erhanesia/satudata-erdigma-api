@@ -224,7 +224,9 @@ public class DatasetAdminService {
         */
         entityManager.flush();
         entityManager.clear();
-        return datasetService.getBySlug(actor, slug, false);
+        // Tanpa IP dan user agent: recordView mati, jadi tidak ada baris log
+        // yang ditulis dan tidak ada yang bisa memakainya.
+        return datasetService.getBySlug(actor, slug, false, null, null);
     }
 
     /**

@@ -2,6 +2,7 @@ package id.co.erdigma.satudata.modules.dataset.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -205,8 +206,10 @@ public class DatasetController {
                     Apakah pemanggilan ini dihitung sebagai kunjungan. Biarkan `true` untuk
                     halaman detail portal; isi `false` untuk pembacaan pengelolaan, supaya angka
                     "Total kunjungan" tidak naik setiap kali admin menengok datanya sendiri.
-                    """, example = "true") @RequestParam(defaultValue = "true") boolean recordView) {
-        return ResponseEntity.ok(datasetService.getBySlug(user, slug, recordView));
+                    """, example = "true") @RequestParam(defaultValue = "true") boolean recordView,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(datasetService.getBySlug(user, slug, recordView,
+                resolveClientIp(request), request.getHeader("User-Agent")));
     }
 
     @PatchMapping(value = "/{slug}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -529,6 +532,19 @@ public class DatasetController {
             @Parameter(description = "Slug dataset. Hanya `penjualan-furnitur-2025` yang punya berkas.", example = "penjualan-furnitur-2025", required = true) @PathVariable String slug,
             @Parameter(description = "Persetujuan pemakaian data. **Harus `true`**, dan ikut tercatat di audit log.", example = "true") @RequestParam(defaultValue = "false") boolean agreement,
             @Parameter(description = """
+                    Penanda satu aksi unduh, berupa UUID yang dibuat pemanggil.
+
+                    Mengunduh beberapa berkas sekaligus berarti memanggil endpoint ini sekali
+                    per berkas. Menyertakan penanda yang SAMA pada tiap panggilan membuat
+                    seluruhnya tercatat sebagai satu baris log, bukan satu baris per berkas.
+
+                    Tidak ada batas waktu sama sekali: dua aksi yang berjarak sepersepuluh
+                    ribu detik tetap dua baris karena penandanya berbeda, dan satu aksi yang
+                    berkasnya besar sehingga terpaut semenit tetap satu baris.
+
+                    Boleh dikosongkan; tanpa penanda, tiap panggilan tercatat sendiri-sendiri.
+                    """) @RequestParam(required = false) String actionId,
+            @Parameter(description = """
                     Berkas mana yang diminta, diisi `id` dari daftar `resources` pada
                     `GET /api/v1/datasets/{slug}`. Boleh berprefiks (`dres-…`) maupun UUID polos.
 
@@ -540,7 +556,8 @@ public class DatasetController {
 
         DownloadPayload payload = downloadService.download(user, slug,
                 resourceId == null || resourceId.isBlank() ? null : IdPrefix.DATASET_RESOURCE.parse(resourceId),
-                agreement, resolveClientIp(request), request.getHeader("User-Agent"));
+                agreement, parseActionId(actionId),
+                resolveClientIp(request), request.getHeader("User-Agent"));
 
         DatasetResource resource = payload.getResource();
         return ResponseEntity.ok()
@@ -551,6 +568,25 @@ public class DatasetController {
                                 : MediaType.APPLICATION_OCTET_STREAM_VALUE))
                 .contentLength(resource.getSizeBytes())
                 .body(new InputStreamResource(payload.getContent()));
+    }
+
+    /**
+     * Membaca penanda aksi, dan MENGABAIKANNYA kalau bentuknya bukan UUID.
+     *
+     * Nilainya datang dari pemanggil, jadi bisa berupa apa saja. Menolak
+     * permintaannya karena penanda yang salah bentuk berarti menggagalkan
+     * unduhan yang sah demi urusan pencatatan, dan itu harga yang tidak
+     * sepadan. Akibat mengabaikannya cuma satu: barisnya tidak digabung.
+     */
+    private UUID parseActionId(String actionId) {
+        if (actionId == null || actionId.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(actionId.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private String resolveClientIp(HttpServletRequest request) {

@@ -22,6 +22,7 @@ import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestGetDTO;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponse;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetResponseLite;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
+import id.co.erdigma.satudata.modules.download.service.AccessLogService;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.helper.DatasetAccessGuard;
 import id.co.erdigma.satudata.modules.dataset.mapper.DatasetMapper;
@@ -42,6 +43,8 @@ public class DatasetService {
     private DatasetMapper datasetMapper;
     @Autowired
     private DatasetAccessGuard accessGuard;
+    @Autowired
+    private AccessLogService accessLogService;
 
     private Specification<Dataset> buildSpecification(DatasetRequestGetDTO params, User user) {
         Specification<Dataset> spec = DatasetSpecification.alwaysTrue();
@@ -147,7 +150,8 @@ public class DatasetService {
      *                   dasbornya sendiri.
      */
     @Transactional
-    public DatasetResponse getBySlug(User user, String slug, boolean recordView) {
+    public DatasetResponse getBySlug(User user, String slug, boolean recordView,
+            String ipAddress, String userAgent) {
         Dataset dataset = datasetRepository.findBySlugAndDeletedAtIsNull(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Dataset not found: " + slug));
 
@@ -164,6 +168,24 @@ public class DatasetService {
         if (recordView) {
             views += 1;
             datasetRepository.incrementViews(dataset.getId());
+
+            /*
+              Jejak audit ikut ditulis di sini, dan SENGAJA menumpang pada
+              syarat yang sama dengan penghitung kunjungan.
+
+              Keduanya menjawab pertanyaan yang sama, "apakah pemanggilan ini
+              berarti seseorang membuka datasetnya". Panel pengelolaan
+              mematikannya karena menengok dataset lewat sana bukan kunjungan,
+              dan alasan itu berlaku sama persis untuk jejak auditnya.
+
+              Bedanya cuma satu: penghitung kunjungan naik setiap kali,
+              sedangkan jejak auditnya dibatasi sekali sehari per orang. Yang
+              pertama menjawab "seberapa sering dataset ini dilihat", yang
+              kedua "siapa saja yang melihatnya". Pembatasan itu diurus
+              AccessLogService, jadi memanggilnya berulang tidak berakibat
+              apa-apa.
+            */
+            accessLogService.recordOpen(user, dataset, ipAddress, userAgent);
         }
 
         DatasetResponse response = datasetMapper.toResponse(dataset);
@@ -177,9 +199,4 @@ public class DatasetService {
         return response;
     }
 
-    /** Bentuk lama, tetap menghitung kunjungan — dipakai halaman detail portal. */
-    @Transactional
-    public DatasetResponse getBySlug(User user, String slug) {
-        return getBySlug(user, slug, true);
-    }
 }

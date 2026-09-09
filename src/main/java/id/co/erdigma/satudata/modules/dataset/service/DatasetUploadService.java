@@ -153,7 +153,7 @@ public class DatasetUploadService {
         // front-end. Tanpa menghitung kunjungan: menerbitkan dataset bukan
         // mengunjunginya, dan penerbitnya tidak seharusnya menaikkan sendiri
         // angka kunjungan datasetnya di detik pertama.
-        return datasetService.getBySlug(user, slug, false);
+        return datasetService.getBySlug(user, slug, false, null, null);
     }
 
     /**

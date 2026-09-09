@@ -58,18 +58,24 @@ public class DownloadLogController {
 
             **Perhatikan:** `to` bersifat inklusif — mengisinya dengan tanggal hari ini ikut
             memuat unduhan yang terjadi hari ini.
+
+            **Jenis akses.** `accessType` memisahkan dua peristiwa yang tabel ini catat
+            bersama: `DOWNLOAD` untuk berkas yang benar-benar diunduh setelah menyetujui
+            syarat pemakaian, dan `PREVIEW` untuk berkas yang hanya dibuka di peramban.
+            Dikosongkan berarti keduanya.
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Log unduhan berhasil diambil", useReturnTypeSchema = true),
-            @ApiResponse(responseCode = "400", description = "Tanggal akhir mendahului tanggal awal", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Tanggal akhir mendahului tanggal awal, atau jenis akses tidak dikenal", content = @Content),
             @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @Content)
     })
     public ResponseEntity<Page<DownloadLogResponse>> index(
             @Parameter(description = "Halaman ke berapa, dimulai dari 0", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Jumlah baris per halaman, maksimum 200", example = "20") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Tanggal awal, format YYYY-MM-DD. Boleh dikosongkan.", example = "2026-08-01") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @Parameter(description = "Tanggal akhir, inklusif. Boleh dikosongkan.", example = "2026-08-31") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ResponseEntity.ok(downloadLogService.getAll(page, size, from, to));
+            @Parameter(description = "Tanggal akhir, inklusif. Boleh dikosongkan.", example = "2026-08-31") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @Parameter(description = "Jenis akses: DOWNLOAD atau PREVIEW. Kosongkan untuk keduanya.", example = "DOWNLOAD") @RequestParam(required = false) String accessType) {
+        return ResponseEntity.ok(downloadLogService.getAll(page, size, from, to, accessType));
     }
 
     @GetMapping(value = "/export", produces = "text/csv")
@@ -84,6 +90,10 @@ public class DownloadLogController {
             paling mudah membuatnya.
 
             Dibatasi 50.000 baris per ekspor. Persempit rentang tanggalnya bila hasilnya terpotong.
+
+            `accessType` berlaku sama seperti di daftar, dan memang harus: berkas yang
+            diekspor mesti berisi persis apa yang sedang dilihat di layar, bukan seluruh
+            tabel.
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Berkas CSV"),
@@ -92,9 +102,10 @@ public class DownloadLogController {
     })
     public ResponseEntity<String> export(@CurrentUser User user,
             @Parameter(description = "Tanggal awal, format YYYY-MM-DD.") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @Parameter(description = "Tanggal akhir, inklusif.") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @Parameter(description = "Tanggal akhir, inklusif.") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @Parameter(description = "Jenis akses: DOWNLOAD atau PREVIEW. Kosongkan untuk keduanya.", example = "DOWNLOAD") @RequestParam(required = false) String accessType) {
 
-        String csv = downloadLogService.exportCsv(user, from, to);
+        String csv = downloadLogService.exportCsv(user, from, to, accessType);
         String names = "log-unduhan-" + LocalDate.now() + ".csv";
 
         return ResponseEntity.ok()
