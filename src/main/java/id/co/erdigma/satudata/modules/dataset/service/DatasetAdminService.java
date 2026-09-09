@@ -19,6 +19,7 @@ import id.co.erdigma.satudata.enums.AuditAction;
 import id.co.erdigma.satudata.enums.IdPrefix;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.dataset.dto.AccessRuleDTO;
 import id.co.erdigma.satudata.modules.dataset.entity.AccessRule;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
@@ -61,6 +62,8 @@ public class DatasetAdminService {
 
     @Autowired
     private DatasetRepository datasetRepository;
+    @Autowired
+    private AdminDivisionScope adminScope;
     @Autowired
     private AuditLogService auditLogService;
     @Autowired
@@ -125,7 +128,7 @@ public class DatasetAdminService {
     @Transactional
     public DatasetResponse update(User actor, String slug, DatasetRequestUpdateDTO body,
             List<MultipartFile> files) {
-        Dataset dataset = fetch(slug);
+        Dataset dataset = fetchForManaging(actor, slug);
 
         List<String> perubahan = new ArrayList<>();
 
@@ -431,7 +434,7 @@ public class DatasetAdminService {
      */
     @Transactional
     public List<AccessRuleDTO> updateAccessRules(User actor, String slug, List<AccessRuleDTO> requested) {
-        Dataset dataset = fetch(slug);
+        Dataset dataset = fetchForManaging(actor, slug);
 
         List<AccessRule> before = new ArrayList<>(dataset.getAccessRules());
         List<AccessRule> after = accessRuleValidator.validate(requested);
@@ -459,7 +462,7 @@ public class DatasetAdminService {
      */
     @Transactional
     public void delete(User actor, String slug) {
-        Dataset dataset = fetch(slug);
+        Dataset dataset = fetchForManaging(actor, slug);
 
         // Audit ditulis lebih dulu, selagi datanya masih utuh terbaca. Setelah
         // penghapusan, judulnya hanya bisa didapat dengan membaca baris yang
@@ -471,9 +474,26 @@ public class DatasetAdminService {
         log.info("Dataset {} dihapus oleh {}", slug, actor != null ? actor.getCognitoId() : "sistem");
     }
 
-    private Dataset fetch(String slug) {
-        return datasetRepository.findBySlugAndDeletedAtIsNull(slug)
+    /**
+     * Mengambil dataset yang hendak diubah, sekaligus memeriksa haknya.
+     *
+     * <h2>Kenapa pemeriksaannya di dalam sini</h2>
+     *
+     * Bisa saja tiap metode pengubah memanggil {@code assertCanManage}
+     * sendiri-sendiri. Tetapi pemeriksaan yang harus DIINGAT pemanggil adalah
+     * pemeriksaan yang suatu saat akan terlupa, dan yang terlupa tidak akan
+     * ketahuan: metodenya tetap bekerja, hanya saja bekerja untuk orang yang
+     * tidak berhak.
+     *
+     * Dengan pemeriksaannya menempel pada pengambilan datanya, metode pengubah
+     * berikutnya yang ditulis siapa pun ikut terjaga tanpa penulisnya perlu
+     * tahu bahwa ada aturan divisi sama sekali.
+     */
+    private Dataset fetchForManaging(User actor, String slug) {
+        Dataset dataset = datasetRepository.findBySlugAndDeletedAtIsNull(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Dataset not found: " + slug));
+        adminScope.assertCanManage(actor, dataset);
+        return dataset;
     }
 
     /**

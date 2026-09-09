@@ -25,6 +25,7 @@ import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.download.service.AccessLogService;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.helper.DatasetAccessGuard;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.dataset.mapper.DatasetMapper;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceRepository;
@@ -43,6 +44,8 @@ public class DatasetService {
     private DatasetMapper datasetMapper;
     @Autowired
     private DatasetAccessGuard accessGuard;
+    @Autowired
+    private AdminDivisionScope adminScope;
     @Autowired
     private AccessLogService accessLogService;
 
@@ -97,9 +100,47 @@ public class DatasetService {
 
     @Transactional(readOnly = true)
     public Page<DatasetResponseLite> getAll(User user, DatasetRequestGetDTO params) {
-        Pageable pageable = PageRequest.of(params.getPage(), params.getSize(), buildSort(params.getSort()));
+        return runQuery(params, buildSpecification(params, user));
+    }
+
+    /**
+     * Daftar dataset untuk PANEL ADMIN, dibatasi divisi si admin.
+     *
+     * <h2>Kenapa metode tersendiri, bukan penyaring tambahan di getAll</h2>
+     *
+     * {@code getAll} melayani katalog portal, dan di sana seorang admin memang
+     * harus melihat seluruh katalog seperti karyawan lain. Menambahkan
+     * pembatasan divisi ke sana akan menyusutkan katalog portal untuk admin,
+     * yaitu perubahan pada halaman yang justru tidak boleh berubah.
+     *
+     * Dua pembaca dengan dua aturan yang berbeda lebih jujur dipisah menjadi
+     * dua pintu daripada disatukan lewat parameter yang bisa lupa dikirim.
+     *
+     * <h2>Pembatasannya dipasang PALING AKHIR</h2>
+     *
+     * Sama seperti pembatasan akses di {@code buildSpecification}: penyaring
+     * yang datang dari parameter adalah keinginan pemanggil, sedangkan yang
+     * ini batas haknya. Admin yang menyunting alamatnya menjadi divisi lain
+     * tidak mendapat dataset divisi itu, melainkan tabel kosong, karena kedua
+     * syarat harus terpenuhi sekaligus.
+     */
+    @Transactional(readOnly = true)
+    public Page<DatasetResponseLite> getAllForAdmin(User admin, DatasetRequestGetDTO params) {
+        Specification<Dataset> spec = buildSpecification(params, admin);
+
+        UUID divisionId = adminScope.filterDivisionId(admin);
+        if (divisionId != null) {
+            spec = spec.and(DatasetSpecification.inDivision(divisionId));
+        }
+        return runQuery(params, spec);
+    }
+
+    private Page<DatasetResponseLite> runQuery(DatasetRequestGetDTO params,
+            Specification<Dataset> spec) {
+        Pageable pageable = PageRequest.of(params.getPage(), params.getSize(),
+                buildSort(params.getSort()));
         Page<DatasetResponseLite> page = datasetRepository
-                .findAll(buildSpecification(params, user), pageable)
+                .findAll(spec, pageable)
                 .map(datasetMapper::toResponseLite);
 
         attachResources(page.getContent());

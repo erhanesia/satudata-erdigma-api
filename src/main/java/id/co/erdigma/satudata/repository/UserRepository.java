@@ -64,4 +64,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
      * mengikuti status kepegawaian di sana.
      */
     long countByDeletedAtIsNull();
+
+    /** Kembaran divisi, untuk kartu "Pengguna aktif" di dasbor panel admin. */
+    long countByDeletedAtIsNullAndDivisionId(java.util.UUID divisionId);
 }

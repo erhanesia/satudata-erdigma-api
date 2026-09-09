@@ -1,5 +1,7 @@
 package id.co.erdigma.satudata.modules.audit.service;
 
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,6 +16,7 @@ import id.co.erdigma.satudata.modules.audit.entity.AuditLog;
 import id.co.erdigma.satudata.modules.audit.mapper.AuditLogMapper;
 import id.co.erdigma.satudata.modules.audit.repository.AuditLogRepository;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +34,8 @@ public class AuditLogService {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+    @Autowired
+    private AdminDivisionScope adminScope;
     @Autowired
     private AuditLogMapper auditLogMapper;
 
@@ -82,11 +87,16 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> getAll(int page, int size, String slug) {
+    public Page<AuditLogResponse> getAll(User actor, int page, int size, String slug) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_SIZE));
-        Page<AuditLog> result = (slug == null || slug.isBlank())
-                ? auditLogRepository.findAllByOrderByRecordedAtDesc(pageable)
-                : auditLogRepository.findAllByObjectSlugOrderByRecordedAtDesc(slug.trim(), pageable);
-        return result.map(auditLogMapper::toResponse);
+
+        UUID divisionId = adminScope.filterDivisionId(actor);
+        String divisionCode = (actor != null && actor.getDivision() != null)
+                ? actor.getDivision().getCode()
+                : null;
+        String dicari = (slug == null || slug.isBlank()) ? null : slug.trim();
+
+        return auditLogRepository.searchForAdmin(divisionId, divisionCode, dicari, pageable)
+                .map(auditLogMapper::toResponse);
     }
 }

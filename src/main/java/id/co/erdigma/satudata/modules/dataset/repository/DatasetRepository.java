@@ -32,6 +32,31 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID>, JpaSpec
 
     long countByDeletedAtIsNull();
 
+    /*
+      Hitungan yang sama, dibatasi satu divisi, untuk dasbor panel admin.
+
+      Sengaja TIDAK dijadikan parameter yang boleh null pada metode di atas.
+      Metode di atas melayani beranda portal yang memang harus menghitung
+      seluruh katalog, dan menyatukan keduanya berarti satu pemanggil yang lupa
+      mengirim parameternya diam-diam mengubah arti angka di halaman yang
+      dilihat seluruh karyawan.
+    */
+    long countByDeletedAtIsNullAndDivisionId(UUID divisionId);
+
+    @Query("""
+            SELECT COALESCE(SUM(d.downloads), 0) FROM Dataset d
+            WHERE d.deletedAt IS NULL AND d.division.id = :divisionId
+            """)
+    long sumDownloadsByDivision(@Param("divisionId") UUID divisionId);
+
+    /** Kembaran divisi dari {@link #countContributor()}. */
+    @Query("""
+            SELECT COUNT(DISTINCT d.uploadedBy.id) FROM Dataset d
+            WHERE d.deletedAt IS NULL AND d.uploadedBy IS NOT NULL
+              AND d.division.id = :divisionId
+            """)
+    long countContributorByDivision(@Param("divisionId") UUID divisionId);
+
     @Query("SELECT COALESCE(SUM(d.downloads), 0) FROM Dataset d WHERE d.deletedAt IS NULL")
     long sumDownloads();
 

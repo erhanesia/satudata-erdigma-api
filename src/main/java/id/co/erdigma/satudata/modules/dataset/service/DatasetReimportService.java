@@ -18,6 +18,7 @@ import id.co.erdigma.satudata.enums.AuditAction;
 import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.exception.ResourceNotFoundException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.helper.XlsxToCsv;
@@ -71,6 +72,8 @@ public class DatasetReimportService {
     @Autowired
     private DatasetRepository datasetRepository;
     @Autowired
+    private AdminDivisionScope adminScope;
+    @Autowired
     private DatasetResourceRepository datasetResourceRepository;
     @Autowired
     private DatasetRowRepository datasetRowRepository;
@@ -89,6 +92,11 @@ public class DatasetReimportService {
     public long reimport(User actor, String slug) {
         Dataset dataset = datasetRepository.findBySlugAndDeletedAtIsNull(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Dataset not found: " + slug));
+
+        // Membaca ulang isi berkas menulis ke tabel baris dan kolom dataset,
+        // jadi ia pengubahan, bukan pembacaan. Batas divisinya sama dengan
+        // menyunting dan menghapus.
+        adminScope.assertCanManage(actor, dataset);
 
         List<DatasetResource> files = datasetResourceRepository
                 .findAllByDatasetIdAndDeletedAtIsNullOrderByFormatSortOrderAscFileNameAsc(

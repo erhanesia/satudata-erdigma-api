@@ -1,5 +1,6 @@
 package id.co.erdigma.satudata.modules.stats.service;
 
+import java.util.UUID;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
+import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.modules.division.repository.DivisionRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.CollectionRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
@@ -26,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 public class StatsService {
     @Autowired
     private DatasetRepository datasetRepository;
+    @Autowired
+    private AdminDivisionScope adminScope;
     @Autowired
     private DivisionRepository divisionRepository;
     @Autowired
@@ -66,6 +71,49 @@ public class StatsService {
     }
 
     /**
+     * Angka dasbor PANEL ADMIN, dibatasi divisi si admin.
+     *
+     * <h2>Kenapa metode dan endpoint tersendiri</h2>
+     *
+     * {@code getStats()} melayani beranda portal, yang dilihat seluruh karyawan
+     * dan harus meringkas seluruh katalog. Menyaringnya menurut divisi
+     * pemanggil akan membuat angka di beranda menyusut berbeda-beda bagi tiap
+     * orang yang membukanya, yaitu perubahan pada halaman yang justru tidak
+     * boleh berubah.
+     *
+     * <h2>Yang TIDAK disaring, dan kenapa</h2>
+     *
+     * Jumlah topik, format, dan divisi tetap global. Ketiganya data acuan
+     * bersama, bukan cerminan cakupan si admin: banyaknya team di Erdigma tetap
+     * sama siapa pun yang bertanya. Menyaringnya menghasilkan kartu bertuliskan
+     * "Total divisi: 1" yang terbaca seperti kerusakan, bukan seperti
+     * keterangan.
+     */
+    @Transactional(readOnly = true)
+    public StatsResponse getStatsForAdmin(User admin) {
+        UUID divisionId = adminScope.filterDivisionId(admin);
+        if (divisionId == null) {
+            // Admin HRIS berurusan dengan seluruh divisi, jadi angkanya sama
+            // persis dengan yang global.
+            return getStats();
+        }
+
+        StatsResponse response = new StatsResponse();
+        response.setTotalDataset(datasetRepository.countByDeletedAtIsNullAndDivisionId(divisionId));
+        response.setTotalDownloads(datasetRepository.sumDownloadsByDivision(divisionId));
+        response.setTotalContributor(datasetRepository.countContributorByDivision(divisionId));
+        response.setTotalActiveUser(userRepository.countByDeletedAtIsNullAndDivisionId(divisionId));
+        response.setTotalDownloads30d(downloadLogRepository.countDownloadsSinceForDivision(
+                LocalDate.now().minusDays(DEFAULT_DAYS - 1L).atStartOfDay(), divisionId));
+
+        // Data acuan, sama bagi siapa pun. Lihat alasannya di javadoc di atas.
+        response.setTotalTopic(topicRepository.countByDeletedAtIsNull());
+        response.setTotalFormat(formatRepository.countByDeletedAtIsNull());
+        response.setTotalDivision(divisionRepository.countByDeletedAtIsNull());
+        return response;
+    }
+
+    /**
      * Unduhan per hari untuk grafik dasbor.
      *
      * Rentangnya berakhir HARI INI dan mundur {@code days} hari, jadi hari yang
@@ -73,13 +121,29 @@ public class StatsService {
      * karena itu wajar terlihat lebih rendah — itu hari yang belum penuh, bukan
      * penurunan.
      */
+    /**
+     * Grafik unduhan harian untuk PANEL ADMIN, dibatasi divisi si admin.
+     *
+     * Alasannya sama dengan {@link #getStatsForAdmin(User)}: grafik yang sama
+     * juga dipakai di luar panel admin, jadi penyaringannya tidak boleh
+     * dipasang pada jalur yang lama.
+     */
+    @Transactional(readOnly = true)
+    public DailyDownloadResponse getDailyDownloadsForAdmin(User admin, int days) {
+        return buildDailyDownloads(days, adminScope.filterDivisionId(admin));
+    }
+
     @Transactional(readOnly = true)
     public DailyDownloadResponse getDailyDownloads(int days) {
+        return buildDailyDownloads(days, null);
+    }
+
+    private DailyDownloadResponse buildDailyDownloads(int days, UUID divisionId) {
         int rentang = Math.min(Math.max(days, 1), MAX_DAYS);
         LocalDate sampai = LocalDate.now();
         LocalDate dari = sampai.minusDays(rentang - 1L);
 
-        List<DailyDownloadCount> mentah = downloadLogRepository.countPerDay(dari, sampai);
+        List<DailyDownloadCount> mentah = downloadLogRepository.countPerDay(dari, sampai, divisionId);
 
         List<DailyDownloadResponse.Day> hari = new ArrayList<>(mentah.size());
         long total = 0;

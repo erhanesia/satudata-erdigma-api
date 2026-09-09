@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
+import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.IdPrefix;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestUpdateDTO;
 import id.co.erdigma.satudata.modules.dataset.entity.Dataset;
@@ -69,6 +70,19 @@ class DatasetFileEditPersistenceTest {
     private DivisionRepository divisionRepository;
 
     private Dataset dataset;
+
+    /*
+      Pelaku yang sedivisi dengan datasetnya.
+
+      Sebelumnya di sini dikirim null, dan itu tidak apa-apa selama actor
+      hanya dipakai untuk mencatat siapa yang menyunting. Sekarang actor
+      juga menentukan boleh atau tidaknya menyunting, jadi null berarti
+      "sesi tidak dikenali" dan ditolak.
+
+      Dipakai divisi yang sama, bukan admin HRIS yang melewati pemeriksaan,
+      supaya jalur yang dilewati tes ini tetap jalur yang biasa.
+    */
+    private User actor;
     private DatasetResource csv;
     private DatasetResource pdf;
 
@@ -79,6 +93,9 @@ class DatasetFileEditPersistenceTest {
         dataset.setTitle("Uji Sunting Berkas");
         dataset.setDivision(divisionRepository.findAll().get(0));
         datasetRepository.save(dataset);
+
+        actor = new User();
+        actor.setDivision(dataset.getDivision());
 
         csv = resource("Rekap", "CSV", dataset.getSlug() + ".csv");
         pdf = resource("Lampiran", "PDF", dataset.getSlug() + ".pdf");
@@ -135,7 +152,7 @@ class DatasetFileEditPersistenceTest {
         DatasetRequestUpdateDTO b = body();
         b.setFiles(List.of(keep(csv)));
 
-        datasetAdminService.update(null, dataset.getSlug(), b, null);
+        datasetAdminService.update(actor, dataset.getSlug(), b, null);
 
         assertThat(live()).extracting(DatasetResource::getLabel).containsExactly("Rekap");
     }
@@ -150,7 +167,7 @@ class DatasetFileEditPersistenceTest {
         DatasetRequestUpdateDTO b = body();
         b.setFiles(List.of(keep(csv), keep(pdf), baru));
 
-        datasetAdminService.update(null, dataset.getSlug(), b,
+        datasetAdminService.update(actor, dataset.getSlug(), b,
                 List.of(new MockMultipartFile("files", "tambahan.csv", "text/csv",
                         "kolom_a,kolom_b\n1,2\n".getBytes())));
 
@@ -176,7 +193,7 @@ class DatasetFileEditPersistenceTest {
 
         DatasetRequestUpdateDTO lepas = body();
         lepas.setFiles(List.of(keep(csv)));
-        datasetAdminService.update(null, dataset.getSlug(), lepas, null);
+        datasetAdminService.update(actor, dataset.getSlug(), lepas, null);
 
         assertThat(datasetRepository.findBySlugAndDeletedAtIsNull(dataset.getSlug()).orElseThrow()
                 .getFormats()).extracting(Format::getName).containsExactly("CSV");
@@ -194,7 +211,7 @@ class DatasetFileEditPersistenceTest {
         DatasetRequestUpdateDTO b = body();
         b.setFiles(List.of(ganti, keep(pdf)));
 
-        datasetAdminService.update(null, dataset.getSlug(), b, null);
+        datasetAdminService.update(actor, dataset.getSlug(), b, null);
 
         assertThat(live()).extracting(DatasetResource::getLabel)
                 .containsExactlyInAnyOrder("Rekap Penjualan Ritel", "Lampiran");

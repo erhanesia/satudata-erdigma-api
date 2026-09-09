@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.download.entity.DownloadLog;
 import id.co.erdigma.satudata.modules.download.repository.DownloadLogRepository;
 
@@ -46,12 +47,18 @@ class DownloadLogCsvExportTest {
 
     private final DownloadLogRepository downloadLogRepository = mock(DownloadLogRepository.class);
     private final AuditLogService auditLogService = mock(AuditLogService.class);
+    private final AdminDivisionScope adminScope = mock(AdminDivisionScope.class);
     private final DownloadLogService service = new DownloadLogService();
 
     @BeforeEach
     void wireFields() {
         ReflectionTestUtils.setField(service, "downloadLogRepository", downloadLogRepository);
         ReflectionTestUtils.setField(service, "auditLogService", auditLogService);
+        ReflectionTestUtils.setField(service, "adminScope", adminScope);
+
+        // Yang diuji di sini netralisasi rumus, bukan cakupan divisi, jadi
+        // cakupannya dibuat seluas mungkin: null berarti tidak dibatasi divisi.
+        when(adminScope.filterDivisionId(any())).thenReturn(null);
     }
 
     /**
@@ -78,7 +85,8 @@ class DownloadLogCsvExportTest {
 
         Page<DownloadLog> page = new PageImpl<>(List.of(row));
         when(downloadLogRepository.search(
-                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(Pageable.class)))
+                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(),
+                any(Pageable.class)))
                 .thenReturn(page);
 
         return service.exportCsv(null, null, null, null);
@@ -173,7 +181,8 @@ class DownloadLogCsvExportTest {
     @DisplayName("baris kepala kolom tetap ditulis meski tidak ada satu pun baris log")
     void writesHeaderOnEmptyResult() {
         when(downloadLogRepository.search(
-                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(Pageable.class)))
+                any(LocalDateTime.class), any(LocalDateTime.class), any(), any(),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
         String csv = service.exportCsv(null, null, null, null);

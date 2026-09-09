@@ -69,13 +69,14 @@ public class DownloadLogController {
             @ApiResponse(responseCode = "400", description = "Tanggal akhir mendahului tanggal awal, atau jenis akses tidak dikenal", content = @Content),
             @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @Content)
     })
-    public ResponseEntity<Page<DownloadLogResponse>> index(
+    public ResponseEntity<Page<DownloadLogResponse>> index(@CurrentUser User user,
             @Parameter(description = "Halaman ke berapa, dimulai dari 0", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Jumlah baris per halaman, maksimum 200", example = "20") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Tanggal awal, format YYYY-MM-DD. Boleh dikosongkan.", example = "2026-08-01") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @Parameter(description = "Tanggal akhir, inklusif. Boleh dikosongkan.", example = "2026-08-31") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Jenis akses: DOWNLOAD atau PREVIEW. Kosongkan untuk keduanya.", example = "DOWNLOAD") @RequestParam(required = false) String accessType) {
-        return ResponseEntity.ok(downloadLogService.getAll(page, size, from, to, accessType));
+        return ResponseEntity.ok(
+                downloadLogService.getAll(user, page, size, from, to, accessType));
     }
 
     @GetMapping(value = "/export", produces = "text/csv")

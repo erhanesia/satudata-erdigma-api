@@ -183,4 +183,23 @@ public class DatasetSpecification {
             return join.get("code").in(divisionCodes);
         };
     }
+
+    /**
+     * Dataset milik satu divisi, dicocokkan lewat id.
+     *
+     * <h2>Kenapa id, bukan kode divisi seperti {@link #hasDivisionIn(List)}</h2>
+     *
+     * Yang di atas melayani penyaring yang diketik pemanggil, dan pemanggil
+     * memang menyebut divisi dengan kodenya. Yang ini melayani BATAS HAK, dan
+     * sumbernya divisi milik si admin sendiri, yang sudah berupa id.
+     *
+     * Menerjemahkannya bolak-balik ke kode hanya menambah satu tempat yang bisa
+     * meleset, pada perbandingan yang menentukan siapa melihat apa.
+     */
+    public static Specification<Dataset> inDivision(UUID divisionId) {
+        return (root, query, cb) -> {
+            Join<Dataset, Division> join = root.join("division", JoinType.INNER);
+            return cb.equal(join.get("id"), divisionId);
+        };
+    }
 }
