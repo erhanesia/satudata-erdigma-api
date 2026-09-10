@@ -62,11 +62,25 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DatasetFileService {
 
-    /** Sejalan dengan spring.servlet.multipart.max-file-size. */
-    public static final long MAX_BYTES = 10L * 1024 * 1024;
+    /**
+     * Batas per berkas.
+     *
+     * Sengaja SEDIKIT DI BAWAH spring.servlet.multipart.max-file-size, bukan
+     * sama dengannya. Batas container ditegakkan sebelum kode ini berjalan,
+     * jadi kalau keduanya sama, penolakannya selalu datang dari container dan
+     * pesan di bawah yang menyebut nama berkasnya tidak pernah terlihat.
+     */
+    public static final long MAX_BYTES = 15L * 1024 * 1024;
 
-    /** Batas seluruh permintaan, sejalan dengan max-request-size. */
-    public static final long MAX_TOTAL_BYTES = 40L * 1024 * 1024;
+    /**
+     * Batas ukuran seluruh berkas dalam satu DATASET, bukan dalam satu
+     * permintaan.
+     *
+     * Bedanya penting: kalau yang dihitung hanya berkas yang sedang dikirim,
+     * sebuah dataset bisa tumbuh melewati batasnya lewat penyuntingan
+     * berulang yang masing-masing sah kalau dilihat sendiri-sendiri.
+     */
+    public static final long MAX_TOTAL_BYTES = 60L * 1024 * 1024;
 
     /**
      * Bukan batas teknis melainkan batas akal sehat. Dataset dengan puluhan
