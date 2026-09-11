@@ -1,6 +1,7 @@
 package id.co.erdigma.satudata.service.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -200,6 +201,83 @@ class GzipStorageTest {
                 Files.write(pulang, in.readAllBytes());
             }
             assertThat(GzipStorage.sha256(pulang)).isEqualTo(GzipStorage.sha256(sumber));
+        } finally {
+            Files.deleteIfExists(terkompresi);
+        }
+    }
+
+    /**
+     * Sumber yang mencatat apakah dirinya sudah ditutup.
+     *
+     * Perlu dibuat sendiri karena yang diuji BUKAN nilai kembalian
+     * melainkan kepemilikan: siapa yang bertanggung jawab menutup sumbernya
+     * ketika pembungkusnya tidak pernah jadi.
+     */
+    private static final class SumberTerpantau extends ByteArrayInputStream {
+        private boolean tertutup;
+
+        private SumberTerpantau(byte[] isi) {
+            super(isi);
+        }
+
+        @Override
+        public void close() throws IOException {
+            tertutup = true;
+            super.close();
+        }
+    }
+
+    /*
+      Yang dijaga di sini bukan galatnya, melainkan apa yang tertinggal
+      setelah galatnya.
+
+      Konstruktor GZIPInputStream membaca kepala gzip saat itu juga, jadi ia
+      melempar untuk objek yang rusak atau terpotong. Kalau sumbernya tidak
+      ditutup saat itu, tidak ada seorang pun yang bisa menutupnya kemudian:
+      pemanggil cuma menerima lemparan, dan pembungkusnya tidak pernah ada.
+
+      Pada jalur S3 yang menggantung di situ adalah koneksi HTTP dari kolam
+      yang jumlahnya terbatas. Gejalanya pun menyesatkan: yang akhirnya
+      terlihat bukan galat pada berkas yang rusak, melainkan SELURUH
+      permintaan ke S3 berhenti menunggu koneksi yang tidak pernah kembali.
+    */
+    @Test
+    @DisplayName("sumber ditutup ketika objek .gz ternyata rusak")
+    void brokenGzipStillClosesItsSource() {
+        SumberTerpantau sumber = new SumberTerpantau(
+                "ini jelas bukan gzip".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> GzipStorage.decompressIfNeeded(
+                "x.csv" + GzipStorage.SUFFIX, sumber))
+                .isInstanceOf(IOException.class);
+
+        assertThat(sumber.tertutup).isTrue();
+    }
+
+    /*
+      Pasangannya, dan sama pentingnya: menutup terlalu rajin sama
+      merusaknya. Pada jalur yang berhasil, kepemilikan sumbernya berpindah
+      ke pembungkus, dan yang menutupnya adalah pemanggil lewat
+      try-with-resources. Kalau sumbernya sudah ditutup di sini, tidak ada
+      satu byte pun yang bisa dibaca.
+    */
+    @Test
+    @DisplayName("sumber TIDAK ditutup selama pembungkusnya masih bisa dipakai")
+    void healthyGzipHandsOverItsSource(@TempDir Path dir) throws IOException {
+        Path sumber = dir.resolve("data.csv");
+        Files.write(sumber, csvBerulang(50).getBytes(StandardCharsets.UTF_8));
+        Path terkompresi = GzipStorage.compressToTemp(sumber);
+
+        try {
+            SumberTerpantau mentah = new SumberTerpantau(Files.readAllBytes(terkompresi));
+            InputStream dibuka = GzipStorage.decompressIfNeeded(
+                    "x.csv" + GzipStorage.SUFFIX, mentah);
+
+            assertThat(mentah.tertutup).isFalse();
+            assertThat(dibuka.readAllBytes()).isEqualTo(Files.readAllBytes(sumber));
+
+            dibuka.close();
+            assertThat(mentah.tertutup).isTrue();
         } finally {
             Files.deleteIfExists(terkompresi);
         }

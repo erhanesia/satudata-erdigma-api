@@ -119,7 +119,36 @@ public final class GzipStorage {
         if (storageKey == null || !storageKey.endsWith(SUFFIX)) {
             return raw;
         }
-        return new GZIPInputStream(raw);
+
+        /*
+          Sumbernya ditutup bila pembungkusnya gagal dibuat.
+
+          Konstruktor GZIPInputStream MEMBACA kepala gzip saat itu juga, jadi
+          ia bisa melempar untuk objek yang rusak atau terpotong. Tanpa
+          penanganan ini, kepemilikan `raw` tidak pernah berpindah ke siapa
+          pun: pemanggil menerima lemparan dan tidak punya rujukan untuk
+          menutupnya, sementara pembungkusnya tidak pernah terbentuk.
+
+          Yang bocor bukan sekadar memori. Pada jalur S3, `raw` adalah
+          koneksi HTTP dari kolam yang jumlahnya terbatas; unduhan berkas
+          rusak yang dicoba berulang kali akan menghabiskannya, dan yang
+          terjadi kemudian bukan galat unduhan melainkan SELURUH permintaan
+          ke S3 menggantung menunggu koneksi yang tidak pernah kembali.
+
+          Perhatikan bahwa `receive` di bawah TIDAK butuh penanganan serupa:
+          di sana try-with-resources menutup sumber yang sudah terbuka
+          walaupun penyiapan sumber berikutnya melempar.
+        */
+        try {
+            return new GZIPInputStream(raw);
+        } catch (IOException | RuntimeException e) {
+            try {
+                raw.close();
+            } catch (IOException gagalTutup) {
+                e.addSuppressed(gagalTutup);
+            }
+            throw e;
+        }
     }
 
     /**
