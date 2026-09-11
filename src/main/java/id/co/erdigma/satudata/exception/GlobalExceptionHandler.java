@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -89,5 +90,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Permintaan tidak valid."));
+    }
+
+    /**
+     * Unggahan yang ditolak container sebelum kode aplikasi sempat berjalan.
+     *
+     * <h2>Kenapa penangan ini perlu ada terpisah</h2>
+     *
+     * DatasetFileService sudah memeriksa ukuran dan memberi pesan yang menyebut
+     * nama berkasnya. Tetapi pemeriksaan itu berjalan di dalam controller,
+     * sedangkan batas multipart ditegakkan Tomcat saat mengurai permintaan,
+     * yaitu sebelum controller mana pun dipanggil. Untuk berkas yang melampaui
+     * batas container, pemeriksaan aplikasi tidak pernah sampai giliran.
+     *
+     * Tanpa penangan ini galatnya jatuh ke penanganan bawaan Spring dan
+     * berakhir sebagai 500 "Terjadi gangguan pada server" — kalimat yang
+     * menyalahkan sistem untuk sesuatu yang justru bisa diperbaiki sendiri oleh
+     * yang mengunggah, dan yang membuatnya melapor alih-alih mengecilkan
+     * berkasnya.
+     *
+     * <h2>Kenapa pesannya menyebut kedua angka</h2>
+     *
+     * Pada titik ini permintaannya belum diurai, jadi tidak ada cara mengetahui
+     * berkas mana yang kebesaran, atau bahkan apakah yang terlampaui batas per
+     * berkas atau batas totalnya. Menyebut keduanya lebih jujur daripada
+     * menebak salah satu.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, String>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of("error",
+                "Unggahan terlalu besar. Batasnya 15 MB per berkas dan 60 MB untuk"
+                        + " seluruh berkas dalam satu dataset."));
     }
 }

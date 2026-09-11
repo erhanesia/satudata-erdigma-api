@@ -119,13 +119,14 @@ public class S3FileStorage implements FileStorage {
     public InputStream open(String storageKey) {
         String fullKey = fullKey(storageKey);
         try {
-            return s3.getObject(GetObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(fullKey)
-                    .build());
+            return GzipStorage.decompressIfNeeded(storageKey,
+                    s3.getObject(GetObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(fullKey)
+                            .build()));
         } catch (NoSuchKeyException e) {
             throw new ResourceNotFoundException("Berkas tidak ditemukan: " + storageKey);
-        } catch (SdkException e) {
+        } catch (SdkException | IOException e) {
             throw new IllegalStateException("Gagal membuka berkas: " + storageKey, e);
         }
     }

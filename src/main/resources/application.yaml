@@ -63,14 +63,31 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 10MB
+      # SENGAJA 1MB DI ATAS MAX_BYTES (15MB) di DatasetFileService, bukan sama.
+      #
+      # Batas ini ditegakkan Tomcat SEBELUM kode aplikasi berjalan. Kalau
+      # keduanya disamakan, container selalu menolak lebih dulu, dan pesan
+      # aplikasi yang menyebut nama berkas beserta angkanya tidak pernah
+      # terpakai — yang sampai ke pengguna cuma galat tanpa sebab. Dengan
+      # selisih ini, berkas kebesaran yang wajar ditolak aplikasi dengan
+      # kalimat yang bisa ditindaklanjuti, sementara container tetap menjadi
+      # jaring pengaman terakhir untuk yang jauh melampaui batas.
+      max-file-size: 16MB
       # Batas SELURUH permintaan, bukan per berkas. Wajib disetel sejak satu
       # dataset boleh memuat beberapa berkas: bawaan Spring untuk nilai ini juga
       # 10MB, sehingga unggahan tiga berkas @5MB akan ditolak container sebelum
       # kode aplikasi sempat berjalan — dan galatnya tidak menyebut sebab yang
-      # sesungguhnya. Angkanya sejalan dengan MAX_TOTAL_BYTES di
-      # DatasetUploadService; ubah keduanya bersamaan.
-      max-request-size: 40MB
+      # sesungguhnya.
+      #
+      # Sejalan dengan MAX_TOTAL_BYTES (60MB) di DatasetFileService, dan
+      # sengaja di atasnya: badan multipart juga memuat bagian JSON metadata
+      # serta penanda batas antarbagian, yang TIDAK ikut dihitung aplikasi.
+      # Kalau angkanya dipas-paskan, unggahan tepat 60MB berkas ditolak
+      # container gara-gara byte pembungkus yang tidak dilihat siapa pun.
+      #
+      # Ubah bersamaan dengan kedua tetapan di DatasetFileService dan dengan
+      # MAX_BYTES/MAX_TOTAL_BYTES di front-end.
+      max-request-size: 64MB
 
   http:
     clients:

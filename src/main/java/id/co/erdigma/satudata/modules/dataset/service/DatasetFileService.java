@@ -29,6 +29,7 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceReposito
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRowRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.FormatRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
+import id.co.erdigma.satudata.service.storage.GzipStorage;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,11 +63,25 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DatasetFileService {
 
-    /** Sejalan dengan spring.servlet.multipart.max-file-size. */
-    public static final long MAX_BYTES = 10L * 1024 * 1024;
+    /**
+     * Batas per berkas.
+     *
+     * Sengaja SEDIKIT DI BAWAH spring.servlet.multipart.max-file-size, bukan
+     * sama dengannya. Batas container ditegakkan sebelum kode ini berjalan,
+     * jadi kalau keduanya sama, penolakannya selalu datang dari container dan
+     * pesan di bawah yang menyebut nama berkasnya tidak pernah terlihat.
+     */
+    public static final long MAX_BYTES = 15L * 1024 * 1024;
 
-    /** Batas seluruh permintaan, sejalan dengan max-request-size. */
-    public static final long MAX_TOTAL_BYTES = 40L * 1024 * 1024;
+    /**
+     * Batas ukuran seluruh berkas dalam satu DATASET, bukan dalam satu
+     * permintaan.
+     *
+     * Bedanya penting: kalau yang dihitung hanya berkas yang sedang dikirim,
+     * sebuah dataset bisa tumbuh melewati batasnya lewat penyuntingan
+     * berulang yang masing-masing sah kalau dilihat sendiri-sendiri.
+     */
+    public static final long MAX_TOTAL_BYTES = 60L * 1024 * 1024;
 
     /**
      * Bukan batas teknis melainkan batas akal sehat. Dataset dengan puluhan
@@ -203,15 +218,47 @@ public class DatasetFileService {
                     ? DatasetImportService.fileNameFor(dataset, upload.format(), i + 1)
                     : freeFileName(dataset, upload.format(), taken);
 
-            Path temp = null;
+            /*
+              Dua berkas sementara, dan keduanya perlu.
+
+              `terkirim` menampung byte apa adanya dari peramban. `isi`
+              menampung berkas yang sesungguhnya. Keduanya sama saja untuk
+              unggahan biasa, dan berbeda ketika peramban mengirim CSV yang
+              sudah dikompresinya.
+            */
+            Path terkirim = null;
+            Path isi = null;
             try {
-                temp = Files.createTempFile("satudata-upload-", "." + extension);
-                upload.file().transferTo(temp);
+                terkirim = Files.createTempFile("satudata-upload-", "." + extension);
+                upload.file().transferTo(terkirim);
+
+                /*
+                  Berkas yang tiba dalam keadaan ter-gzip dibuka untuk DIBACA,
+                  tetapi byte aslinya tetap disimpan.
+
+                  Peramban mengecilkan CSV sebelum mengirimnya, supaya berkas
+                  besar tidak perlu melewati kabel dalam ukuran penuh. Yang
+                  sampai di sini karenanya bukan CSV melainkan byte gzip.
+
+                  Keduanya dipakai untuk hal yang berbeda: yang terbuka untuk
+                  membaca isi tabel, mengukur, dan menyidik jari; yang
+                  terkompresi untuk disimpan apa adanya. Membuang yang kedua
+                  lalu mengompresi ulang di server berarti mengerjakan hal yang
+                  sama dua kali.
+
+                  Dikenali dari dua byte pertamanya, bukan dari nama berkas
+                  atau tipe MIME. Nama berkasnya sengaja tetap .csv supaya
+                  jenisnya terbaca benar, dan tipe MIME datang dari peramban
+                  sehingga bisa berisi apa saja.
+                */
+                GzipStorage.Terkirim datang = GzipStorage.receive(terkirim);
+                isi = datang.isi();
 
                 boolean readable = READABLE_FORMATS.contains(upload.format().getName());
 
-                DatasetResource resource = datasetImportService.registerFile(dataset, temp,
-                        upload.format(), upload.label(), contentTypeOf(upload), fileName);
+                DatasetResource resource = datasetImportService.registerFile(dataset, isi,
+                        datang.terkompresi(), upload.format(), upload.label(),
+                        contentTypeOf(upload), fileName);
 
                 if (readable) {
                     // Excel diubah dulu jadi CSV lalu masuk lewat importir yang
@@ -219,11 +266,11 @@ public class DatasetFileService {
                     // menduplikasi pengenalan tipe kolom, label Indonesia, dan
                     // penulisan per batch -- dan duplikatnya akan menyimpang
                     // diam-diam begitu salah satunya diperbaiki.
-                    Path toRead = temp;
+                    Path toRead = isi;
                     Path tempCsv = null;
                     try {
                         if ("XLSX".equals(upload.format().getName())) {
-                            tempCsv = xlsxToCsv.convert(temp);
+                            tempCsv = xlsxToCsv.convert(isi);
                             toRead = tempCsv;
                         }
                         datasetImportService.importCsv(dataset, toRead, contentTypeOf(upload), resource);
@@ -240,17 +287,82 @@ public class DatasetFileService {
                 throw new BusinessValidationException(
                         "Berkas \"" + upload.originalName() + "\" gagal dibaca. Pastikan isinya tidak rusak.");
             } finally {
-                if (temp != null) {
-                    try {
-                        Files.deleteIfExists(temp);
-                    } catch (IOException e) {
-                        log.warn("Berkas sementara {} tidak terhapus", temp, e);
-                    }
+                // Keduanya dibersihkan di sini, termasuk ketika `isi` ternyata
+                // berkas yang sama dengan `terkirim`.
+                hapusSementara(terkirim);
+                if (isi != null && !isi.equals(terkirim)) {
+                    hapusSementara(isi);
                 }
             }
         }
 
+        pastikanTotalTidakTerlampaui(dataset);
         datasetImportService.electMainResource(dataset);
+    }
+
+    /**
+     * Menegakkan batas total pada ukuran SESUNGGUHNYA, setelah berkasnya
+     * tersimpan.
+     *
+     * <h2>Kenapa perlu diperiksa dua kali</h2>
+     *
+     * {@code validate} berjalan sebelum berkasnya sampai, jadi yang bisa ia
+     * jumlahkan cuma {@code MultipartFile.getSize()}, yaitu byte yang
+     * TERKIRIM. Untuk CSV yang sudah dikecilkan peramban, angka itu jauh
+     * lebih kecil daripada isinya: 17 MB bisa tiba sebagai 8 MB.
+     *
+     * Sementara ukuran berkas lama yang dipertahankan datang dari kolom
+     * {@code sizeBytes}, yang berisi ukuran sesungguhnya. Jadi penjumlahan di
+     * sana mencampur dua satuan yang berbeda, dan sebuah dataset bisa lolos
+     * pemeriksaan lalu tersimpan melewati batasnya sendiri.
+     *
+     * Akibatnya bukan sekadar angka yang meleset: pada penyuntingan
+     * berikutnya, ukuran berkas lama sudah di atas batas, sehingga dataset
+     * itu tidak bisa lagi ditambahi apa pun tanpa ada yang bisa menjelaskan
+     * kenapa.
+     *
+     * <h2>Kenapa batas PER BERKAS tidak ikut diperiksa ulang</h2>
+     *
+     * Itu disengaja. Justru kelonggaran itulah yang membuat CSV besar bisa
+     * diunggah, dan itu tujuan fitur ini. Yang tidak boleh dilonggarkan
+     * adalah batas totalnya, karena ia yang menahan berapa banyak yang
+     * benar-benar tersimpan dan berapa banyak baris yang masuk ke tabel.
+     *
+     * <h2>Kenapa setelah menyimpan, bukan sebelum</h2>
+     *
+     * Ukuran sesungguhnya baru diketahui setelah kompresinya dibuka, dan itu
+     * terjadi saat berkasnya sudah tiba. Menolak di sini berarti seluruh
+     * transaksinya dibatalkan, dan berkas yang telanjur naik ke penyimpanan
+     * ikut dibersihkan StoredFileCleaner. Yang terbuang waktu unggahnya, dan
+     * itu jauh lebih murah daripada katalog yang menyimpan lebih banyak
+     * daripada yang ia janjikan.
+     */
+    private void pastikanTotalTidakTerlampaui(Dataset dataset) {
+        long total = datasetResourceRepository.sumSizeBytes(dataset.getId());
+        if (total <= MAX_TOTAL_BYTES) {
+            return;
+        }
+
+        log.warn("Dataset {} melewati batas total setelah dekompresi: {} byte",
+                dataset.getSlug(), total);
+
+        throw new BusinessValidationException(
+                "Total ukuran seluruh berkas menjadi " + humanSize(total)
+                        + " setelah dibuka, melebihi batas " + humanSize(MAX_TOTAL_BYTES)
+                        + ". Berkas CSV yang dikecilkan peramban terkirim lebih kecil"
+                        + " daripada isinya, jadi ukurannya baru diketahui setelah tiba.");
+    }
+
+    /** Menghapus berkas sementara tanpa pernah menggagalkan unggahan karenanya. */
+    private void hapusSementara(Path berkas) {
+        if (berkas == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(berkas);
+        } catch (IOException e) {
+            log.warn("Berkas sementara {} tidak terhapus", berkas, e);
+        }
     }
 
     /**
