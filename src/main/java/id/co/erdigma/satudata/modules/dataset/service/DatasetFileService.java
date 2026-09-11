@@ -29,6 +29,7 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceReposito
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRowRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.FormatRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
+import id.co.erdigma.satudata.service.storage.GzipStorage;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -217,15 +218,47 @@ public class DatasetFileService {
                     ? DatasetImportService.fileNameFor(dataset, upload.format(), i + 1)
                     : freeFileName(dataset, upload.format(), taken);
 
-            Path temp = null;
+            /*
+              Dua berkas sementara, dan keduanya perlu.
+
+              `terkirim` menampung byte apa adanya dari peramban. `isi`
+              menampung berkas yang sesungguhnya. Keduanya sama saja untuk
+              unggahan biasa, dan berbeda ketika peramban mengirim CSV yang
+              sudah dikompresinya.
+            */
+            Path terkirim = null;
+            Path isi = null;
             try {
-                temp = Files.createTempFile("satudata-upload-", "." + extension);
-                upload.file().transferTo(temp);
+                terkirim = Files.createTempFile("satudata-upload-", "." + extension);
+                upload.file().transferTo(terkirim);
+
+                /*
+                  Berkas yang tiba dalam keadaan ter-gzip dibuka untuk DIBACA,
+                  tetapi byte aslinya tetap disimpan.
+
+                  Peramban mengecilkan CSV sebelum mengirimnya, supaya berkas
+                  besar tidak perlu melewati kabel dalam ukuran penuh. Yang
+                  sampai di sini karenanya bukan CSV melainkan byte gzip.
+
+                  Keduanya dipakai untuk hal yang berbeda: yang terbuka untuk
+                  membaca isi tabel, mengukur, dan menyidik jari; yang
+                  terkompresi untuk disimpan apa adanya. Membuang yang kedua
+                  lalu mengompresi ulang di server berarti mengerjakan hal yang
+                  sama dua kali.
+
+                  Dikenali dari dua byte pertamanya, bukan dari nama berkas
+                  atau tipe MIME. Nama berkasnya sengaja tetap .csv supaya
+                  jenisnya terbaca benar, dan tipe MIME datang dari peramban
+                  sehingga bisa berisi apa saja.
+                */
+                GzipStorage.Terkirim datang = GzipStorage.receive(terkirim);
+                isi = datang.isi();
 
                 boolean readable = READABLE_FORMATS.contains(upload.format().getName());
 
-                DatasetResource resource = datasetImportService.registerFile(dataset, temp,
-                        upload.format(), upload.label(), contentTypeOf(upload), fileName);
+                DatasetResource resource = datasetImportService.registerFile(dataset, isi,
+                        datang.terkompresi(), upload.format(), upload.label(),
+                        contentTypeOf(upload), fileName);
 
                 if (readable) {
                     // Excel diubah dulu jadi CSV lalu masuk lewat importir yang
@@ -233,11 +266,11 @@ public class DatasetFileService {
                     // menduplikasi pengenalan tipe kolom, label Indonesia, dan
                     // penulisan per batch -- dan duplikatnya akan menyimpang
                     // diam-diam begitu salah satunya diperbaiki.
-                    Path toRead = temp;
+                    Path toRead = isi;
                     Path tempCsv = null;
                     try {
                         if ("XLSX".equals(upload.format().getName())) {
-                            tempCsv = xlsxToCsv.convert(temp);
+                            tempCsv = xlsxToCsv.convert(isi);
                             toRead = tempCsv;
                         }
                         datasetImportService.importCsv(dataset, toRead, contentTypeOf(upload), resource);
@@ -254,17 +287,28 @@ public class DatasetFileService {
                 throw new BusinessValidationException(
                         "Berkas \"" + upload.originalName() + "\" gagal dibaca. Pastikan isinya tidak rusak.");
             } finally {
-                if (temp != null) {
-                    try {
-                        Files.deleteIfExists(temp);
-                    } catch (IOException e) {
-                        log.warn("Berkas sementara {} tidak terhapus", temp, e);
-                    }
+                // Keduanya dibersihkan di sini, termasuk ketika `isi` ternyata
+                // berkas yang sama dengan `terkirim`.
+                hapusSementara(terkirim);
+                if (isi != null && !isi.equals(terkirim)) {
+                    hapusSementara(isi);
                 }
             }
         }
 
         datasetImportService.electMainResource(dataset);
+    }
+
+    /** Menghapus berkas sementara tanpa pernah menggagalkan unggahan karenanya. */
+    private void hapusSementara(Path berkas) {
+        if (berkas == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(berkas);
+        } catch (IOException e) {
+            log.warn("Berkas sementara {} tidak terhapus", berkas, e);
+        }
     }
 
     /**

@@ -79,7 +79,7 @@ public class LocalFileStorage implements FileStorage {
             throw new ResourceNotFoundException("Berkas tidak ditemukan: " + storageKey);
         }
         try {
-            return Files.newInputStream(target);
+            return GzipStorage.decompressIfNeeded(storageKey, Files.newInputStream(target));
         } catch (IOException e) {
             throw new IllegalStateException("Gagal membuka berkas: " + storageKey, e);
         }
