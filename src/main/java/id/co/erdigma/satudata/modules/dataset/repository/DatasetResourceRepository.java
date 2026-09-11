@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
@@ -13,6 +15,22 @@ import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 @Repository
 public interface DatasetResourceRepository
         extends JpaRepository<DatasetResource, UUID>, JpaSpecificationExecutor<DatasetResource> {
+
+    /**
+     * Ukuran SESUNGGUHNYA seluruh berkas hidup milik satu dataset.
+     *
+     * Yang dijumlahkan kolom {@code sizeBytes}, dan kolom itu selalu berisi
+     * ukuran berkas seperti yang akan diterima orang saat mengunduh, bukan
+     * ukurannya di penyimpanan maupun ukurannya saat terkirim.
+     *
+     * Dipakai menegakkan batas total setelah berkasnya benar-benar
+     * tersimpan. Lihat alasannya di DatasetFileService.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(r.sizeBytes), 0) FROM DatasetResource r
+            WHERE r.dataset.id = :datasetId AND r.deletedAt IS NULL
+            """)
+    long sumSizeBytes(@Param("datasetId") UUID datasetId);
 
     /**
      * Diurutkan menurut jenis berkas — CSV, XLSX, PDF, DOCX — mengikuti

@@ -296,7 +296,61 @@ public class DatasetFileService {
             }
         }
 
+        pastikanTotalTidakTerlampaui(dataset);
         datasetImportService.electMainResource(dataset);
+    }
+
+    /**
+     * Menegakkan batas total pada ukuran SESUNGGUHNYA, setelah berkasnya
+     * tersimpan.
+     *
+     * <h2>Kenapa perlu diperiksa dua kali</h2>
+     *
+     * {@code validate} berjalan sebelum berkasnya sampai, jadi yang bisa ia
+     * jumlahkan cuma {@code MultipartFile.getSize()}, yaitu byte yang
+     * TERKIRIM. Untuk CSV yang sudah dikecilkan peramban, angka itu jauh
+     * lebih kecil daripada isinya: 17 MB bisa tiba sebagai 8 MB.
+     *
+     * Sementara ukuran berkas lama yang dipertahankan datang dari kolom
+     * {@code sizeBytes}, yang berisi ukuran sesungguhnya. Jadi penjumlahan di
+     * sana mencampur dua satuan yang berbeda, dan sebuah dataset bisa lolos
+     * pemeriksaan lalu tersimpan melewati batasnya sendiri.
+     *
+     * Akibatnya bukan sekadar angka yang meleset: pada penyuntingan
+     * berikutnya, ukuran berkas lama sudah di atas batas, sehingga dataset
+     * itu tidak bisa lagi ditambahi apa pun tanpa ada yang bisa menjelaskan
+     * kenapa.
+     *
+     * <h2>Kenapa batas PER BERKAS tidak ikut diperiksa ulang</h2>
+     *
+     * Itu disengaja. Justru kelonggaran itulah yang membuat CSV besar bisa
+     * diunggah, dan itu tujuan fitur ini. Yang tidak boleh dilonggarkan
+     * adalah batas totalnya, karena ia yang menahan berapa banyak yang
+     * benar-benar tersimpan dan berapa banyak baris yang masuk ke tabel.
+     *
+     * <h2>Kenapa setelah menyimpan, bukan sebelum</h2>
+     *
+     * Ukuran sesungguhnya baru diketahui setelah kompresinya dibuka, dan itu
+     * terjadi saat berkasnya sudah tiba. Menolak di sini berarti seluruh
+     * transaksinya dibatalkan, dan berkas yang telanjur naik ke penyimpanan
+     * ikut dibersihkan StoredFileCleaner. Yang terbuang waktu unggahnya, dan
+     * itu jauh lebih murah daripada katalog yang menyimpan lebih banyak
+     * daripada yang ia janjikan.
+     */
+    private void pastikanTotalTidakTerlampaui(Dataset dataset) {
+        long total = datasetResourceRepository.sumSizeBytes(dataset.getId());
+        if (total <= MAX_TOTAL_BYTES) {
+            return;
+        }
+
+        log.warn("Dataset {} melewati batas total setelah dekompresi: {} byte",
+                dataset.getSlug(), total);
+
+        throw new BusinessValidationException(
+                "Total ukuran seluruh berkas menjadi " + humanSize(total)
+                        + " setelah dibuka, melebihi batas " + humanSize(MAX_TOTAL_BYTES)
+                        + ". Berkas CSV yang dikecilkan peramban terkirim lebih kecil"
+                        + " daripada isinya, jadi ukurannya baru diketahui setelah tiba.");
     }
 
     /** Menghapus berkas sementara tanpa pernah menggagalkan unggahan karenanya. */
