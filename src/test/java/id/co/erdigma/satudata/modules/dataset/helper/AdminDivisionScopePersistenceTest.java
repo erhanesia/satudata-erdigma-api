@@ -126,6 +126,8 @@ class AdminDivisionScopePersistenceTest {
         d.setTitle("Uji Cakupan Divisi");
         d.setDivision(division);
         d.setDownloads(7);
+        d.setViews(5);
+        d.setApiCalls(3);
         return datasetRepository.saveAndFlush(d);
     }
 
@@ -362,11 +364,40 @@ class AdminDivisionScopePersistenceTest {
         admin.setHrisPermissionLevel(HrisPermissionLevel.DIRECTOR);
         admin.setDivision(divisiA);
 
-        // Yang dijaga di sini bukan angkanya, melainkan bahwa kelimanya
-        // benar-benar berjalan. Query yang tidak bisa diurai gagal di sini,
-        // bukan di dasbor produksi.
-        assertThat(statsService.getStatsForAdmin(admin)).isNotNull();
+        // Pertama: seluruh query-nya benar-benar berjalan. Query yang tidak
+        // bisa diurai gagal di sini, bukan di dasbor produksi.
+        var sebelum = statsService.getStatsForAdmin(admin);
         assertThat(statsService.getDailyDownloadsForAdmin(admin, 30)).isNotNull();
+
+        /*
+          Kedua: tidak ada ruas yang tertinggal kosong.
+
+          StatsResponse memakai long primitif, jadi ruas yang lupa diisi
+          terkirim sebagai 0, dan nol yang berarti "belum diisi" tidak bisa
+          dibedakan dari nol yang berarti "memang belum ada". Yang membacanya
+          menyimpulkan katalognya kosong padahal cuma jalur ini yang lupa.
+
+          Dataset uji membawa angka pada ketiga penghitungnya, jadi ruas yang
+          tidak ikut diisi akan ketahuan sebagai selisih yang tidak bertambah.
+        */
+        dataset(divisiA);
+        var sesudah = statsService.getStatsForAdmin(admin);
+
+        assertThat(sesudah.getTotalDataset()).isEqualTo(sebelum.getTotalDataset() + 1);
+        assertThat(sesudah.getTotalDownloads()).isEqualTo(sebelum.getTotalDownloads() + 7);
+        assertThat(sesudah.getTotalViews()).isEqualTo(sebelum.getTotalViews() + 5);
+        assertThat(sesudah.getTotalApiCalls()).isEqualTo(sebelum.getTotalApiCalls() + 3);
+
+        // Data acuan: sama bagi siapa pun, jadi harus terisi dan tidak berubah.
+        assertThat(sesudah.getTotalTopic()).isEqualTo(sebelum.getTotalTopic());
+        assertThat(sesudah.getTotalFormat()).isEqualTo(sebelum.getTotalFormat());
+        assertThat(sesudah.getTotalDivision()).isEqualTo(sebelum.getTotalDivision());
+        assertThat(sesudah.getTotalCollection()).isEqualTo(sebelum.getTotalCollection());
+
+        // Koleksi dan divisi pasti ada isinya di basis data mana pun, jadi nol
+        // di sini berarti ruasnya lupa diisi, bukan katalognya yang kosong.
+        assertThat(sesudah.getTotalDivision()).isPositive();
+        assertThat(sesudah.getTotalFormat()).isPositive();
     }
 
     @Test

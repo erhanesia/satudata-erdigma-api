@@ -105,11 +105,38 @@ public class StatsService {
         response.setTotalActiveUser(userRepository.countByDeletedAtIsNullAndDivisionId(divisionId));
         response.setTotalDownloads30d(downloadLogRepository.countDownloadsSinceForDivision(
                 LocalDate.now().minusDays(DEFAULT_DAYS - 1L).atStartOfDay(), divisionId));
+        response.setTotalApiCalls(datasetRepository.sumApiCallsByDivision(divisionId));
+        response.setTotalViews(datasetRepository.sumViewsByDivision(divisionId));
+        response.setTotalDatasetWithFile(
+                datasetRepository.countWithResourceByDivision(divisionId));
 
-        // Data acuan, sama bagi siapa pun. Lihat alasannya di javadoc di atas.
+        /*
+          Data acuan, sama bagi siapa pun.
+
+          Jumlah topik, format, dan divisi bukan cerminan cakupan si admin:
+          banyaknya team di Erdigma tetap sama siapa pun yang bertanya.
+
+          Koleksi ikut di sini karena ia memang TIDAK punya divisi sama
+          sekali; tidak ada kolom yang bisa dipakai menyaringnya, dan
+          memaksakannya berarti mengarang hubungan yang tidak ada.
+        */
         response.setTotalTopic(topicRepository.countByDeletedAtIsNull());
         response.setTotalFormat(formatRepository.countByDeletedAtIsNull());
         response.setTotalDivision(divisionRepository.countByDeletedAtIsNull());
+        response.setTotalCollection(collectionRepository.countByDeletedAtIsNull());
+
+        /*
+          SELURUH ruas StatsResponse kini terisi, dan itu disengaja.
+
+          Ruas yang dibiarkan kosong tidak menjadi "tidak tahu" melainkan 0,
+          karena tipenya primitif. Nol yang berarti "belum diisi" tidak bisa
+          dibedakan dari nol yang berarti "memang belum ada", dan pembacanya
+          menyimpulkan katalognya kosong padahal cuma jalur ini yang lupa
+          mengisinya.
+
+          Kalau kelak ada ruas baru di StatsResponse, ia harus ikut diisi di
+          sini juga.
+        */
         return response;
     }
 

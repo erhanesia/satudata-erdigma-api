@@ -63,8 +63,22 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID>, JpaSpec
     @Query("SELECT COALESCE(SUM(d.apiCalls), 0) FROM Dataset d WHERE d.deletedAt IS NULL")
     long sumApiCalls();
 
+    /** Kembaran divisi dari {@link #sumApiCalls()}. */
+    @Query("""
+            SELECT COALESCE(SUM(d.apiCalls), 0) FROM Dataset d
+            WHERE d.deletedAt IS NULL AND d.division.id = :divisionId
+            """)
+    long sumApiCallsByDivision(@Param("divisionId") UUID divisionId);
+
     @Query("SELECT COALESCE(SUM(d.views), 0) FROM Dataset d WHERE d.deletedAt IS NULL")
     long sumViews();
+
+    /** Kembaran divisi dari {@link #sumViews()}. */
+    @Query("""
+            SELECT COALESCE(SUM(d.views), 0) FROM Dataset d
+            WHERE d.deletedAt IS NULL AND d.division.id = :divisionId
+            """)
+    long sumViewsByDivision(@Param("divisionId") UUID divisionId);
 
     /**
      * Menaikkan penghitung kunjungan satu langkah.
@@ -90,6 +104,19 @@ public interface DatasetRepository extends JpaRepository<Dataset, UUID>, JpaSpec
             WHERE r.deletedAt IS NULL AND r.dataset.deletedAt IS NULL
             """)
     long countWithResource();
+
+    /**
+     * Kembaran divisi dari {@link #countWithResource()}.
+
+     * Divisi dibaca dari DATASET-nya, bukan dari berkasnya, karena berkas
+     * tidak punya divisi sendiri: ia selalu milik dataset yang memuatnya.
+     */
+    @Query("""
+            SELECT COUNT(DISTINCT r.dataset.id) FROM DatasetResource r
+            WHERE r.deletedAt IS NULL AND r.dataset.deletedAt IS NULL
+              AND r.dataset.division.id = :divisionId
+            """)
+    long countWithResourceByDivision(@Param("divisionId") UUID divisionId);
 
     @Query("""
             SELECT d FROM Dataset d
