@@ -1,5 +1,6 @@
 package id.co.erdigma.satudata.modules.download.service;
 
+import java.util.UUID;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.AuditAction;
@@ -40,6 +42,8 @@ public class DownloadLogService {
     @Autowired
     private DownloadLogRepository downloadLogRepository;
     @Autowired
+    private AdminDivisionScope adminScope;
+    @Autowired
     private DownloadLogMapper downloadLogMapper;
     @Autowired
     private AuditLogService auditLogService;
@@ -60,13 +64,24 @@ public class DownloadLogService {
     private static final int MAX_EXPORT = 50_000;
 
     @Transactional(readOnly = true)
-    public Page<DownloadLogResponse> getAll(int page, int size, LocalDate from, LocalDate to,
-            String accessType) {
+    public Page<DownloadLogResponse> getAll(User actor, int page, int size, LocalDate from,
+            LocalDate to, String accessType) {
         Pageable pageable = PageRequest.of(Math.max(page, 0),
                 Math.min(Math.max(size, 1), MAX_SIZE));
 
+        /*
+          Batas divisi dipasang di sini, bukan di controller.
+
+          Endpoint ini sudah hanya untuk ADMIN, jadi tidak ada pembaca lain yang
+          perlu dibedakan. Menaruh batasnya di lapisan yang menyusun query
+          berarti tidak ada jalan menuju data ini yang bisa melewatinya, termasuk
+          jalan yang ditambahkan orang lain nanti.
+        */
+        UUID divisionId = adminScope.filterDivisionId(actor);
+
         return downloadLogRepository
-                .search(awalDari(from), akhirDari(to), normalizeAccessType(accessType), pageable)
+                .search(awalDari(from), akhirDari(to), normalizeAccessType(accessType),
+                        divisionId, pageable)
                 .map(downloadLogMapper::toResponse);
     }
 
@@ -143,8 +158,13 @@ public class DownloadLogService {
             throw new BusinessValidationException("Tanggal akhir mendahului tanggal awal.");
         }
 
+        // Ekspor tunduk pada batas yang sama dengan yang dilihat di layar.
+        // Kalau tidak, seorang admin bisa membawa keluar baris divisi lain
+        // yang bahkan tidak pernah bisa ia lihat di tabelnya.
+        UUID divisionId = adminScope.filterDivisionId(actor);
+
         List<DownloadLog> rows = downloadLogRepository
-                .search(start, end, jenisAkses, PageRequest.of(0, MAX_EXPORT))
+                .search(start, end, jenisAkses, divisionId, PageRequest.of(0, MAX_EXPORT))
                 .getContent();
 
         StringBuilder csv = new StringBuilder();

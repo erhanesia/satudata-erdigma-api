@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import id.co.erdigma.satudata.entity.User;
+import id.co.erdigma.satudata.annotation.CurrentUser;
 import id.co.erdigma.satudata.modules.audit.dto.AuditLogResponse;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
 
@@ -58,10 +60,10 @@ public class AuditLogController {
             @ApiResponse(responseCode = "200", description = "Jejak audit berhasil diambil", useReturnTypeSchema = true),
             @ApiResponse(responseCode = "403", description = "Bukan ADMIN", content = @io.swagger.v3.oas.annotations.media.Content)
     })
-    public ResponseEntity<Page<AuditLogResponse>> index(
+    public ResponseEntity<Page<AuditLogResponse>> index(@CurrentUser User user,
             @Parameter(description = "Halaman ke berapa, dimulai dari 0", example = "0") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Jumlah baris per halaman, maksimum 200", example = "20") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Saring ke satu dataset saja, diisi slug-nya", example = "penjualan-bulanan") @RequestParam(required = false) String slug) {
-        return ResponseEntity.ok(auditLogService.getAll(page, size, slug));
+        return ResponseEntity.ok(auditLogService.getAll(user, page, size, slug));
     }
 }
