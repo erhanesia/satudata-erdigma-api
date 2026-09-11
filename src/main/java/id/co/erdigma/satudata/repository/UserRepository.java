@@ -65,6 +65,32 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
      */
     long countByDeletedAtIsNull();
 
-    /** Kembaran divisi, untuk kartu "Pengguna aktif" di dasbor panel admin. */
-    long countByDeletedAtIsNullAndDivisionId(java.util.UUID divisionId);
+    /**
+     * Kembaran divisi, untuk kartu "Pengguna aktif" di dasbor panel admin.
+     *
+     * <h2>Kenapa ditulis sebagai @Query, bukan diturunkan dari namanya</h2>
+     *
+     * Versi pertama mengandalkan penurunan nama, dan itu GAGAL saat dijalankan,
+     * meski aplikasinya menyala tanpa keluhan. {@link User} punya metode bantu
+     * {@code getDivisionId()} yang menghitung sendiri dari relasi divisinya,
+     * bukan kolom yang dipetakan. Spring Data membaca nama properti dari getter,
+     * menemukan {@code divisionId}, lalu berhenti memecahnya, sehingga yang
+     * disusun adalah {@code u.divisionId} dan Hibernate tidak bisa menemukannya.
+     *
+     * Kembarannya di DatasetRepository lolos justru karena Dataset TIDAK punya
+     * getter semacam itu, sehingga namanya dipecah menjadi {@code d.division.id}
+     * sebagaimana dimaksud.
+     *
+     * Yang membuatnya berbahaya: teks JPQL-nya disusun saat aplikasi menyala,
+     * tetapi baru diurai Hibernate saat query itu benar-benar dijalankan. Satu-
+     * satunya yang menjalankannya adalah kartu ini di dasbor admin, jadi
+     * kegagalannya muncul pertama kali di hadapan pengguna.
+     *
+     * Menuliskan jalurnya terang-terangan menghilangkan tebakan itu sepenuhnya.
+     */
+    @Query("""
+            SELECT COUNT(u) FROM User u
+            WHERE u.deletedAt IS NULL AND u.division.id = :divisionId
+            """)
+    long countByDeletedAtIsNullAndDivisionId(@Param("divisionId") java.util.UUID divisionId);
 }

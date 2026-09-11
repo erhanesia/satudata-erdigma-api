@@ -129,9 +129,24 @@ public class AdminDivisionScope {
     public void assertCanManage(User admin, Dataset dataset) {
         UUID scope = filterDivisionId(admin);
         if (scope == null) {
+            /*
+              Admin HRIS lolos SEBELUM divisi datasetnya diperiksa, dan itu
+              disengaja.
+
+              Kolom divisi pada dataset bertanda NOT NULL, di entity maupun di
+              skema, jadi dataset tanpa divisi memang tidak bisa terbentuk.
+              Tetapi seandainya suatu saat muncul, misalnya lewat bug migrasi
+              atau impor, admin HRIS-lah satu-satunya yang bisa membereskannya.
+
+              Menolaknya di sini akan mengubah anomali data yang bisa diperbaiki
+              menjadi baris yang terkunci permanen: tidak bisa disunting, tidak
+              bisa dihapus, tidak bisa diperbaiki oleh siapa pun.
+            */
             return;
         }
 
+        // Pemeriksaan null di bawah ini jaring pengaman, bukan tanda bahwa null
+        // mungkin terjadi. Lihat alasannya di atas.
         UUID pemilik = (dataset.getDivision() != null) ? dataset.getDivision().getId() : null;
         if (!scope.equals(pemilik)) {
             /*
