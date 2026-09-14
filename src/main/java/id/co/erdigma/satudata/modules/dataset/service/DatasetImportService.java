@@ -30,6 +30,7 @@ import id.co.erdigma.satudata.modules.dataset.repository.DatasetResourceReposito
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRowRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.FormatRepository;
 import id.co.erdigma.satudata.service.storage.FileStorage;
+import id.co.erdigma.satudata.service.storage.GzipStorage;
 import id.co.erdigma.satudata.service.storage.StoredFile;
 import id.co.erdigma.satudata.service.storage.StoredFileCleaner;
 
@@ -338,7 +339,7 @@ public class DatasetImportService {
     @Transactional
     public DatasetResource registerFile(Dataset dataset, Path source, Format format,
             String label, String contentType, int order) {
-        return registerFile(dataset, source, format, label, contentType,
+        return registerFile(dataset, source, null, format, label, contentType,
                 fileNameFor(dataset, format, order));
     }
 
@@ -349,10 +350,10 @@ public class DatasetImportService {
      * yang sudah terpakai alih-alih menghitungnya dari nomor urut.
      */
     @Transactional
-    public DatasetResource registerFile(Dataset dataset, Path source, Format format,
-            String label, String contentType, String fileName) {
+    public DatasetResource registerFile(Dataset dataset, Path source, Path terkompresi,
+            Format format, String label, String contentType, String fileName) {
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
-        StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
+        StoredFile stored = simpanBerkas(source, terkompresi, storageKey, contentType);
         // Ditandai SEBELUM barisnya disimpan. Penyimpanan berhasil sementara
         // transaksinya kemudian batal adalah persis keadaan yang meninggalkan
         // berkas yatim di S3.
@@ -370,7 +371,8 @@ public class DatasetImportService {
         resource.setChecksumSha256(stored.getChecksumSha256());
         datasetResourceRepository.save(resource);
 
-        log.info("Berkas terdaftar: {} ({} byte)", storageKey, stored.getSizeBytes());
+        log.info("Berkas terdaftar: {} ({} byte)", stored.getStorageKey(),
+                stored.getSizeBytes());
         return resource;
     }
 
@@ -394,7 +396,7 @@ public class DatasetImportService {
 
         String fileName = dataset.getSlug() + ".csv";
         String storageKey = "dataset/" + dataset.getSlug() + "/" + fileName;
-        StoredFile stored = fileStorage.storeFrom(source, storageKey, contentType);
+        StoredFile stored = simpanBerkas(source, null, storageKey, contentType);
         // Ditandai SEBELUM barisnya disimpan. Penyimpanan berhasil sementara
         // transaksinya kemudian batal adalah persis keadaan yang meninggalkan
         // berkas yatim di S3.
@@ -414,7 +416,8 @@ public class DatasetImportService {
         resource.setChecksumSha256(stored.getChecksumSha256());
         datasetResourceRepository.save(resource);
 
-        log.info("Berkas terdaftar: {} ({} byte)", storageKey, stored.getSizeBytes());
+        log.info("Berkas terdaftar: {} ({} byte)", stored.getStorageKey(),
+                stored.getSizeBytes());
         return resource;
     }
 
@@ -564,5 +567,100 @@ public class DatasetImportService {
         }
         out.add(current.toString().trim());
         return out;
+    }
+
+    /**
+     * Menyimpan berkas, dalam keadaan terkompresi bila sepadan.
+     *
+     * <h2>Ukuran dan sidik jari tetap milik berkas ASLI</h2>
+     *
+     * {@code storeFrom} menghitung keduanya dari apa yang diserahkan
+     * kepadanya, yaitu berkas yang sudah ter-gzip. Keduanya harus ditulis
+     * ulang di sini, dan itu bukan kerapian:
+     *
+     * <ul>
+     *   <li>{@code sizeBytes} dipakai sebagai {@code Content-Length} pada
+     *       unduhan. Diisi ukuran yang terkompresi, peramban memutus
+     *       unduhan lebih awal dan yang tersimpan di komputer orang adalah
+     *       CSV yang terpotong. Tidak ada galat, dan yang membacanya
+     *       menyimpulkan datanya memang cuma segitu.</li>
+     *   <li>{@code checksumSha256} tidak akan pernah cocok dengan berkas
+     *       yang ada di tangan orang yang mengunduhnya.</li>
+     * </ul>
+     */
+    private StoredFile simpanBerkas(Path source, Path sudahTerkompresi, String storageKey,
+            String contentType) {
+        long ukuranAsli;
+        try {
+            ukuranAsli = Files.size(source);
+        } catch (IOException e) {
+            throw new IllegalStateException("Gagal membaca sumber: " + source, e);
+        }
+
+        if (sudahTerkompresi == null && !GzipStorage.worthCompressing(storageKey, ukuranAsli)) {
+            return fileStorage.storeFrom(source, storageKey, contentType);
+        }
+
+        /*
+          Kompresi dari peramban dipakai apa adanya.
+
+          Kalau berkasnya tiba sudah ter-gzip, byte itulah yang disimpan.
+          Membuangnya lalu mengompresi ulang di sini berarti mengerjakan hal
+          yang sama dua kali, sekitar satu sampai dua detik CPU per unggahan
+          CSV besar, untuk hasil yang sudah ada di tangan.
+
+          Yang dikompresi di sini hanya berkas yang datang apa adanya: CSV
+          kecil yang tidak dikompresi peramban, dan unggahan dari pemanggil
+          di luar peramban.
+        */
+        boolean milikKlien = sudahTerkompresi != null;
+        Path terkompresi = null;
+        try {
+            terkompresi = milikKlien ? sudahTerkompresi : GzipStorage.compressToTemp(source);
+
+            /*
+              Berkas yang tidak jadi mengecil disimpan apa adanya.
+
+              CSV nyaris selalu menyusut, tetapi "nyaris" bukan "selalu": CSV
+              berisi data acak atau yang sudah terkompresi bisa justru
+              bertambah. Kalau itu terjadi, tidak ada gunanya menanggung
+              beban membuka kompresi selamanya.
+            */
+            if (Files.size(terkompresi) >= ukuranAsli) {
+                return fileStorage.storeFrom(source, storageKey, contentType);
+            }
+
+            /*
+              Tipe MIME yang dicatat di penyimpanan menyebut bentuk BYTE-nya,
+              bukan bentuk isinya. Yang menyebut isinya kolom contentType pada
+              barisnya, dan itulah yang dipakai saat mengirim ke peramban.
+
+              Bedanya tidak pernah terlihat pengguna karena byte-nya selalu
+              mengalir lewat aplikasi, tetapi orang yang membuka bucket dan
+              melihat objek bertuliskan text/csv padahal isinya gzip akan
+              menyimpulkan ada yang rusak.
+            */
+            StoredFile stored = fileStorage.storeFrom(terkompresi,
+                    storageKey + GzipStorage.SUFFIX, "application/gzip");
+
+            log.info("Berkas {} disimpan terkompresi: {} -> {} byte",
+                    storageKey, ukuranAsli, Files.size(terkompresi));
+
+            return new StoredFile(stored.getStorageProvider(), stored.getStorageKey(),
+                    ukuranAsli, GzipStorage.sha256(source));
+
+        } catch (IOException e) {
+            throw new IllegalStateException("Gagal mengompresi berkas: " + storageKey, e);
+        } finally {
+            // Yang dibuat di sini yang dibersihkan di sini. Berkas milik klien
+            // dihapus pemanggil, bersama berkas sementara unggahannya.
+            if (terkompresi != null && !milikKlien) {
+                try {
+                    Files.deleteIfExists(terkompresi);
+                } catch (IOException e) {
+                    log.warn("Berkas sementara {} gagal dihapus", terkompresi, e);
+                }
+            }
+        }
     }
 }

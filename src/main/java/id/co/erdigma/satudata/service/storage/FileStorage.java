@@ -35,6 +35,18 @@ public interface FileStorage {
         }
     }
 
+    /**
+     * Isi ASLI berkas, apa pun bentuknya di penyimpanan.
+     *
+     * Sebagian berkas disimpan dalam keadaan ter-gzip demi menghemat ruang,
+     * ditandai akhiran {@code .gz} pada kuncinya. Implementasi WAJIB
+     * membuka kompresinya di sini lewat {@link GzipStorage}, sehingga
+     * pemanggil selalu menerima byte yang sama dengan yang diunggah.
+     *
+     * Kalau kewajiban itu dilanggar, yang terjadi bukan galat melainkan
+     * importir CSV yang membaca byte gzip mentah lalu menyimpan sampah
+     * sebagai isi tabel.
+     */
     InputStream open(String storageKey);
 
     boolean exists(String storageKey);
