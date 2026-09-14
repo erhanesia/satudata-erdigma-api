@@ -1,0 +1,243 @@
+# Divisi disesuaikan dengan team di HRIS produksi, beserta jumlah karyawannya.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Changeset 42 mengambil daftar team dari hris-api DEV. Satu Data sudah berjalan
+# di produksi, dan pengguna produksi mendapat divisinya dengan mencocokkan team
+# mereka di HRIS produksi ke `hris_team_id`. Team yang tidak ada di tabel ini
+# membuat karyawannya berdivisi kosong, dan pengguna tanpa divisi tidak bisa
+# menerbitkan dataset sama sekali.
+#
+# Daftar pembandingnya diambil 14 September 2026 dari hris-api PRODUKSI, hanya
+# lewat GET: `GET /api/v1/team` (26 team), lalu untuk tiap team
+# `GET /api/v1/employee?teamId=...&size=1` dan dibaca `totalElements`-nya.
+# Daftar karyawan bawaan hris-api sudah mengecualikan karyawan yang terhapus.
+#
+# Hasil pencocokannya dengan isi changeset 42:
+#
+#   22 team   id dan nama sama persis, cukup diisi jumlah karyawannya
+#    1 team   "C Level" (id dev) menjadi "C-Level" (id produksi)
+#    3 team   hanya ada di produksi, ditambahkan
+#    9 team   hanya ada di dev, dihapus lunak
+#
+# Hasil akhirnya 26 baris hidup, sama persis dengan daftar team produksi.
+#
+# ---------------------------------------------------------------------------
+# Kenapa jumlah karyawan disimpan
+#
+# Aturannya: yang ditampilkan hanya divisi yang punya karyawan, atau yang
+# punya dataset. Daftar divisi dimuat setiap pengunjung beranda dan halaman
+# Divisi, dan saat itu back-end tidak bisa bertanya ke HRIS: satu kali buka
+# halaman butuh 27 panggilan, dan token karyawan biasa belum tentu diizinkan
+# HRIS membaca daftar karyawan. Jadi jumlahnya disimpan di sini.
+#
+# Angkanya potret, bukan nilai hidup. Team yang hari ini kosong bisa punya
+# karyawan bulan depan. Yang memperbaruinya kelak adalah fitur sinkronisasi
+# khusus super admin HRIS, yang memakai token super admin yang sedang login.
+#
+# Empat team produksi yang saat diambil tidak punya karyawan: Channel
+# Development, Erspace, General Manager, dan Offline Channel. Barisnya tetap
+# hidup supaya karyawan yang kelak masuk ke sana langsung mendapat divisi saat
+# login; hanya tidak ditampilkan. Nilainya cukup bawaan 0, jadi tidak ditulis
+# ulang di bawah.
+#
+# ---------------------------------------------------------------------------
+# "C Level" dan "C-Level"
+#
+# Di HRIS keduanya dua catatan team berbeda dengan id berbeda. Diperlakukan
+# sebagai unit yang sama atas keputusan pengguna, jadi baris `CL` yang ada
+# dipindah ke id dan nama produksi alih-alih ditambah baris baru. Kodenya tetap
+# `CL`, sehingga filter `?divisions=CL` yang sudah beredar tetap berlaku.
+#
+# ---------------------------------------------------------------------------
+# Kode team baru
+#
+# HRIS hanya menyimpan id dan nama, jadi kodenya disusun di sini mengikuti pola
+# changeset 42, singkatan nama minimal dua huruf: `EMC`, `TM`, dan `ETK`.
+# Ketiganya belum dipakai baris mana pun, termasuk yang dihapus lunak, dan
+# `code` bertanda UNIQUE.
+#
+# ---------------------------------------------------------------------------
+# Dampak di produksi
+#
+# Aman dijalankan. Kesembilan team yang dihapus lunak tidak ada di HRIS
+# produksi, jadi tidak ada pengguna produksi yang pernah dicocokkan ke sana dan
+# tidak ada dataset produksi yang menunjuknya. Dataset dan pengguna contoh
+# yang menunjuknya hanya ada di laptop, dan dipindahkan changeset 55.
+#
+# Karyawan di C-Level, Erhanesia Mulia Corpora, dan Team Media mendapat
+# divisinya saat data mereka diambil ulang dari HRIS berikutnya.
+databaseChangeLog:
+  - changeSet:
+      id: "54"
+      author: author
+      changes:
+        - addColumn:
+            tableName: division
+            columns:
+              - column:
+                  name: hris_employee_count
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+        # Jumlah karyawan 18 team yang id dan namanya sudah sesuai produksi.
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 2 }
+            where: "code = 'CS'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 25 }
+            where: "code = 'DIT'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 2 }
+            where: "code = 'DS'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 45 }
+            where: "code = 'EC'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 26 }
+            where: "code = 'ECS'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 18 }
+            where: "code = 'EICK'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 10 }
+            where: "code = 'EKI'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 48 }
+            where: "code = 'FAT'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 40 }
+            where: "code = 'HRGA'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 12 }
+            where: "code = 'MT'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 66 }
+            where: "code = 'PEB'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 15 }
+            where: "code = 'RT'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 68 }
+            where: "code = 'SCEW'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 59 }
+            where: "code = 'SCVV'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 40 }
+            where: "code = 'SCYM'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 23 }
+            where: "code = 'TCEW'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 23 }
+            where: "code = 'TCVV'"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: hris_employee_count, valueNumeric: 19 }
+            where: "code = 'TCYM'"
+
+        # "C Level" dev menjadi "C-Level" produksi. Kodenya sengaja tetap.
+        - update:
+            tableName: division
+            columns:
+              - column: { name: name, value: "C-Level" }
+              - column: { name: hris_team_id, value: "68620f25-8b60-47ba-aee4-c4c0707345f4" }
+              - column: { name: hris_employee_count, valueNumeric: 3 }
+            where: "code = 'CL'"
+
+        # Team yang hanya ada di produksi. Id melanjutkan urutan changeset 42.
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000033" }
+              - column: { name: code, value: "EMC" }
+              - column: { name: name, value: "Erhanesia Mulia Corpora" }
+              - column: { name: hris_team_id, value: "5bd258b7-1338-43de-aacd-f1d992e45ae5" }
+              - column: { name: hris_employee_count, valueNumeric: 2 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000034" }
+              - column: { name: code, value: "TM" }
+              - column: { name: name, value: "Team Media" }
+              - column: { name: hris_team_id, value: "f3067a05-9354-4c36-b969-b44a85daa3bb" }
+              - column: { name: hris_employee_count, valueNumeric: 9 }
+        - insert:
+            tableName: division
+            columns:
+              - column: { name: id, value: "b0000000-0000-4000-8000-000000000035" }
+              - column: { name: code, value: "ETK" }
+              - column: { name: name, value: "Erhanesia Tunas Kebajikan" }
+              - column: { name: hris_team_id, value: "de1c53c3-a394-4929-b5ac-53096a774d17" }
+              - column: { name: hris_employee_count, valueNumeric: 0 }
+
+        # Team yang hanya ada di dev. Dihapus lunak, bukan dibuang, karena
+        # dataset dan pengguna contoh di laptop masih menunjuknya sampai
+        # changeset 55 memindahkannya.
+        - update:
+            tableName: division
+            columns:
+              - column: { name: deleted_at, valueComputed: "now()" }
+            where: "code IN ('BV', 'EP', 'GMLT', 'MKTP', 'PPE', 'RI', 'VLS', 'WE', 'YMV') AND deleted_at IS NULL"
+
+      # Dibalik dengan urutan terbalik. Baris baru dihapus sungguhan karena
+      # memang tidak pernah ada sebelumnya; ini gagal kalau sudah ada pengguna
+      # atau dataset yang menunjuknya, dan kegagalan itu yang benar, karena
+      # membuang barisnya diam-diam akan merusak kunci asing mereka.
+      rollback:
+        - update:
+            tableName: division
+            columns:
+              - column: { name: deleted_at, valueComputed: "NULL" }
+            where: "code IN ('BV', 'EP', 'GMLT', 'MKTP', 'PPE', 'RI', 'VLS', 'WE', 'YMV')"
+        - delete:
+            tableName: division
+            where: "code IN ('EMC', 'TM', 'ETK')"
+        - update:
+            tableName: division
+            columns:
+              - column: { name: name, value: "C Level" }
+              - column: { name: hris_team_id, value: "cde18a43-800b-473b-ab28-ee393c67f45b" }
+            where: "code = 'CL'"
+        - dropColumn:
+            tableName: division
+            columnName: hris_employee_count
