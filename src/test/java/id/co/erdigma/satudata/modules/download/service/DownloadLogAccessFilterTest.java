@@ -20,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.modules.audit.service.AuditLogService;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.download.entity.DownloadLog;
 import id.co.erdigma.satudata.modules.download.mapper.DownloadLogMapper;
 import id.co.erdigma.satudata.modules.download.repository.DownloadLogRepository;
@@ -53,6 +54,7 @@ class DownloadLogAccessFilterTest {
     private final DownloadLogRepository downloadLogRepository = mock(DownloadLogRepository.class);
     private final DownloadLogMapper downloadLogMapper = mock(DownloadLogMapper.class);
     private final AuditLogService auditLogService = mock(AuditLogService.class);
+    private final AdminDivisionScope adminScope = mock(AdminDivisionScope.class);
     private final DownloadLogService service = new DownloadLogService();
 
     @BeforeEach
@@ -60,9 +62,15 @@ class DownloadLogAccessFilterTest {
         ReflectionTestUtils.setField(service, "downloadLogRepository", downloadLogRepository);
         ReflectionTestUtils.setField(service, "downloadLogMapper", downloadLogMapper);
         ReflectionTestUtils.setField(service, "auditLogService", auditLogService);
+        ReflectionTestUtils.setField(service, "adminScope", adminScope);
+
+        // Cakupan divisi diuji tersendiri. Di sini yang dijaga penyaring jenis
+        // akses, jadi cakupannya sengaja dibuat seluas mungkin: null berarti
+        // "tidak dibatasi divisi mana pun".
+        when(adminScope.filterDivisionId(any())).thenReturn(null);
 
         Page<DownloadLog> empty = new PageImpl<>(List.of());
-        when(downloadLogRepository.search(any(), any(), any(), any())).thenReturn(empty);
+        when(downloadLogRepository.search(any(), any(), any(), any(), any())).thenReturn(empty);
     }
 
     /** Jenis akses yang benar-benar sampai ke query, apa pun bentuk masukannya. */
@@ -70,14 +78,14 @@ class DownloadLogAccessFilterTest {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         org.mockito.Mockito.verify(downloadLogRepository).search(
                 any(LocalDateTime.class), any(LocalDateTime.class), captor.capture(),
-                any(Pageable.class));
+                any(), any(Pageable.class));
         return captor.getValue();
     }
 
     @Test
     @DisplayName("tanpa penyaring, query menerima null yang berarti semua jenis akses")
     void passesNullWhenNotFiltering() {
-        service.getAll(0, 20, null, null, null);
+        service.getAll(null, 0, 20, null, null, null);
 
         assertThat(accessTypeSentToQuery()).isNull();
     }
@@ -85,7 +93,7 @@ class DownloadLogAccessFilterTest {
     @Test
     @DisplayName("penyaring kosong diperlakukan sama dengan tidak menyaring")
     void treatsBlankAsNoFilter() {
-        service.getAll(0, 20, null, null, "   ");
+        service.getAll(null, 0, 20, null, null, "   ");
 
         assertThat(accessTypeSentToQuery()).isNull();
     }
@@ -93,7 +101,7 @@ class DownloadLogAccessFilterTest {
     @Test
     @DisplayName("huruf kecil dan spasi berlebih dirapikan, bukan ditolak")
     void normalisesCasingAndSpacing() {
-        service.getAll(0, 20, null, null, "  download  ");
+        service.getAll(null, 0, 20, null, null, "  download  ");
 
         assertThat(accessTypeSentToQuery()).isEqualTo("DOWNLOAD");
     }
@@ -101,7 +109,7 @@ class DownloadLogAccessFilterTest {
     @Test
     @DisplayName("PREVIEW diteruskan apa adanya")
     void passesPreviewThrough() {
-        service.getAll(0, 20, null, null, "PREVIEW");
+        service.getAll(null, 0, 20, null, null, "PREVIEW");
 
         assertThat(accessTypeSentToQuery()).isEqualTo("PREVIEW");
     }
@@ -117,7 +125,7 @@ class DownloadLogAccessFilterTest {
     @Test
     @DisplayName("jenis akses yang tidak dikenal ditolak, bukan diabaikan")
     void rejectsUnknownAccessType() {
-        assertThatThrownBy(() -> service.getAll(0, 20, null, null, "SEMBARANG"))
+        assertThatThrownBy(() -> service.getAll(null, 0, 20, null, null, "SEMBARANG"))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("DOWNLOAD")
                 .hasMessageContaining("PREVIEW");

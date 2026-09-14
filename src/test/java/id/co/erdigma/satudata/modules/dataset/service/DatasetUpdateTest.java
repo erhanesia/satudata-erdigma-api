@@ -40,6 +40,7 @@ import id.co.erdigma.satudata.modules.dataset.entity.DatasetResource;
 import id.co.erdigma.satudata.modules.dataset.entity.Format;
 import id.co.erdigma.satudata.modules.dataset.entity.Topic;
 import id.co.erdigma.satudata.modules.dataset.helper.AccessRuleValidator;
+import id.co.erdigma.satudata.modules.dataset.helper.AdminDivisionScope;
 import id.co.erdigma.satudata.modules.dataset.helper.RichTextSanitizer;
 import id.co.erdigma.satudata.modules.dataset.repository.CollectionRepository;
 import id.co.erdigma.satudata.modules.dataset.repository.DatasetRepository;
@@ -83,6 +84,7 @@ class DatasetUpdateTest {
             mock(DatasetResourceRepository.class);
     private final DatasetFileService datasetFileService = mock(DatasetFileService.class);
     private final DatasetService datasetService = mock(DatasetService.class);
+    private final AdminDivisionScope adminScope = mock(AdminDivisionScope.class);
     private final EntityManager entityManager = mock(EntityManager.class);
     private final AccessRuleValidator accessRuleValidator = new AccessRuleValidator();
 
@@ -115,6 +117,11 @@ class DatasetUpdateTest {
         ReflectionTestUtils.setField(service, "entityManager", entityManager);
         ReflectionTestUtils.setField(service, "accessRuleValidator", accessRuleValidator);
         ReflectionTestUtils.setField(service, "richTextSanitizer", richTextSanitizer);
+
+        // Dibiarkan tidak menolak apa pun. Cakupan divisi punya tesnya
+        // sendiri; kalau ikut ditegakkan di sini, seluruh kelas ini akan
+        // gagal karena alasan yang tidak sedang diujinya.
+        ReflectionTestUtils.setField(service, "adminScope", adminScope);
 
         dataset = new Dataset();
         dataset.setId(UUID.randomUUID());

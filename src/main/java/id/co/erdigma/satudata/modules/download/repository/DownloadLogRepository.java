@@ -88,16 +88,33 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
      * benar-benar boleh kosong hanya {@code accessType}, dan kosong di situ
      * berarti "semua jenis akses", bukan "tidak ada satu pun".
      */
+    /*
+      Penyaring divisi lewat subquery, bukan join.
+
+      `download_log` menyimpan `dataset_id` sebagai kolom biasa, bukan relasi
+      yang dipetakan, dan itu memang disengaja: baris log harus tetap utuh
+      walau datasetnya kelak dihapus. Konsekuensinya di sini, menyaring
+      menurut divisi datasetnya harus lewat subquery.
+
+      Yang dibandingkan divisi DATASET-nya, bukan divisi pengunduhnya.
+      Kolom `division_code` pada baris log menerangkan siapa yang mengunduh,
+      dan memakainya akan menjawab pertanyaan yang lain sama sekali: bukan
+      "siapa mengakses data divisi saya", melainkan "orang divisi saya
+      mengakses apa saja".
+    */
     @Query("""
             SELECT l FROM DownloadLog l
             WHERE l.downloadedAt >= :start
               AND l.downloadedAt < :end
               AND (:accessType IS NULL OR l.accessType = :accessType)
+              AND (:divisionId IS NULL OR l.datasetId IN (
+                    SELECT d.id FROM Dataset d WHERE d.division.id = :divisionId))
             ORDER BY l.downloadedAt DESC
             """)
     Page<DownloadLog> search(@Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("accessType") String accessType,
+            @Param("divisionId") UUID divisionId,
             Pageable pageable);
 
     /**
@@ -127,6 +144,23 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
     long countDownloadsSince(@Param("sejak") LocalDateTime sejak);
 
     /**
+     * Kembaran divisi dari {@link #countDownloadsSince(LocalDateTime)}.
+     *
+     * Dibatasi divisi DATASET-nya, bukan divisi pengunduhnya, alasannya sama
+     * dengan pada {@code search}: yang ditanyakan "seberapa sering data divisi
+     * saya diambil", bukan "orang divisi saya mengambil apa saja".
+     */
+    @Query("""
+            SELECT COUNT(l) FROM DownloadLog l
+             WHERE l.downloadedAt >= :sejak
+               AND l.accessType = 'DOWNLOAD'
+               AND l.datasetId IN (
+                    SELECT d.id FROM Dataset d WHERE d.division.id = :divisionId)
+            """)
+    long countDownloadsSinceForDivision(@Param("sejak") LocalDateTime sejak,
+            @Param("divisionId") UUID divisionId);
+
+    /**
      * Jumlah unduhan per hari untuk grafik dasbor.
      *
      * Query native, dan {@code generate_series} di dalamnya bukan gaya-gayaan:
@@ -152,6 +186,19 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
      * Membangkitkan deretnya sebagai {@code timestamp} lalu memotongnya kembali
      * ke {@code date} menjaga tipenya tetap bebas zona waktu dari ujung ke
      * ujung — sama seperti kolom {@code downloaded_at} yang dibandingkan.
+     *
+     * <h2>Penyaring divisi juga di dalam ON, bukan WHERE</h2>
+     *
+     * Alasannya sama persis dengan penyaring {@code access_type} di atas. Di
+     * WHERE, hari yang tidak punya unduhan dari divisi itu terbuang seluruhnya
+     * dan lubangnya kembali muncul di grafik, padahal nol adalah jawaban yang
+     * benar untuk hari itu.
+     *
+     * Penandanya boleh kosong, dan kosong berarti seluruh divisi. Bentuk itu
+     * dipilih di sini meski dihindari di tempat lain, karena query ini hanya
+     * punya satu pemanggil dan menyalin seluruh generate_series beserta CAST-nya
+     * demi satu baris tambahan justru menghasilkan dua tempat yang harus dijaga
+     * tetap sama.
      */
     @Query(value = """
             SELECT CAST(hari.tanggal AS date) AS log_date, COUNT(l.id) AS total
@@ -160,9 +207,12 @@ public interface DownloadLogRepository extends JpaRepository<DownloadLog, Long> 
               ON l.downloaded_at >= hari.tanggal
              AND l.downloaded_at < hari.tanggal + INTERVAL '1 day'
              AND l.access_type = 'DOWNLOAD'
+             AND (CAST(:divisionId AS uuid) IS NULL OR l.dataset_id IN (
+                    SELECT d.id FROM dataset d WHERE d.division_id = CAST(:divisionId AS uuid)))
             GROUP BY hari.tanggal
             ORDER BY hari.tanggal
             """, nativeQuery = true)
     List<DailyDownloadCount> countPerDay(@Param("dari") LocalDate dari,
-            @Param("sampai") LocalDate sampai);
+            @Param("sampai") LocalDate sampai,
+            @Param("divisionId") UUID divisionId);
 }

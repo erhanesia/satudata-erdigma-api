@@ -98,7 +98,7 @@ class DownloadLogSearchPersistenceTest {
         String pratinjau = insertRow("PREVIEW");
 
         Page<DownloadLog> hasil = downloadLogRepository.search(
-                AWAL, akhir(), null, PageRequest.of(0, 500));
+                AWAL, akhir(), null, null, PageRequest.of(0, 500));
 
         assertThat(contains(hasil, unduhan)).isTrue();
         assertThat(contains(hasil, pratinjau)).isTrue();
@@ -111,7 +111,7 @@ class DownloadLogSearchPersistenceTest {
         String pratinjau = insertRow("PREVIEW");
 
         Page<DownloadLog> hasil = downloadLogRepository.search(
-                AWAL, akhir(), "DOWNLOAD", PageRequest.of(0, 500));
+                AWAL, akhir(), "DOWNLOAD", null, PageRequest.of(0, 500));
 
         assertThat(contains(hasil, unduhan)).isTrue();
         assertThat(contains(hasil, pratinjau)).isFalse();
@@ -124,7 +124,7 @@ class DownloadLogSearchPersistenceTest {
         String pratinjau = insertRow("PREVIEW");
 
         Page<DownloadLog> hasil = downloadLogRepository.search(
-                AWAL, akhir(), "PREVIEW", PageRequest.of(0, 500));
+                AWAL, akhir(), "PREVIEW", null, PageRequest.of(0, 500));
 
         assertThat(contains(hasil, pratinjau)).isTrue();
         assertThat(contains(hasil, unduhan)).isFalse();
@@ -196,7 +196,7 @@ class DownloadLogSearchPersistenceTest {
         Page<DownloadLog> hasil = downloadLogRepository.search(
                 LocalDate.now().atStartOfDay(),
                 LocalDate.now().plusDays(1).atStartOfDay(),
-                null, PageRequest.of(0, 500));
+                null, null, PageRequest.of(0, 500));
 
         assertThat(contains(hasil, slug)).isTrue();
     }
