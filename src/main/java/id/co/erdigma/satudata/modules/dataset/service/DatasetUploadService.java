@@ -1,6 +1,5 @@
 package id.co.erdigma.satudata.modules.dataset.service;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -99,7 +98,6 @@ public class DatasetUploadService {
         }
 
         String slug = resolveSlug(body);
-        long totalByte = uploads.stream().mapToLong(b -> b.file().getSize()).sum();
 
         Dataset dataset = new Dataset();
         dataset.setSlug(slug);
@@ -119,16 +117,23 @@ public class DatasetUploadService {
         dataset.setCollection(resolveCollection(body.getCollectionSlug()));
         dataset.setTopics(resolveTopics(body.getTopics()));
         dataset.setAccessRules(accessRuleValidator.validate(body.getAccessRules()));
-        // Lencana format menyusul berkas yang benar-benar masuk, bukan
-        // ditetapkan CSV di depan seperti dulu.
-        dataset.setFormats(uploads.stream().map(UploadedFile::format).distinct().toList());
-        dataset.setLastUpdatedAt(LocalDateTime.now());
-        dataset.setFileSize(datasetFileService.humanSize(totalByte));
         datasetRepository.save(dataset);
 
         // Dinomori 1..n. Datasetnya baru dibuat, jadi belum ada nama yang bisa
         // ditabrak.
         datasetFileService.store(dataset, uploads, true);
+
+        /*
+          Lencana format, ukuran total, dan waktu perubahan dihitung SETELAH
+          berkasnya tersimpan, lewat aturan yang sama dengan penyuntingan.
+
+          Dulu ukurannya diisi di depan dari byte yang terkirim. Sejak peramban
+          mengompresi CSV sebelum mengirimnya, angka itu ukuran gzip: CSV
+          16,5 MB tampil "Unduh · 7,7 MB", padahal modal unduh dan berkas yang
+          diterima pengunduh 16,5 MB. Ukuran asli baru diketahui setelah
+          kompresinya dibuka di dalam store.
+        */
+        datasetFileService.refreshAggregates(dataset);
 
         // Ikut transaksi yang sama dengan penerbitannya. Kalau salah satu berkas
         // gagal dan semuanya dibatalkan, catatan "dataset dibuat" harus ikut
