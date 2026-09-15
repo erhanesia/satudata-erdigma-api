@@ -195,14 +195,16 @@ public class DatasetImportService {
                 row.setData(data);
                 batch.add(row);
 
+                // Lewat JDBC, bukan saveAll: Hibernate menulis baris ber-id
+                // IDENTITY satu per satu. Lihat DatasetRowRepositoryImpl.
                 if (batch.size() >= BATCH_SIZE) {
-                    datasetRowRepository.saveAll(batch);
+                    datasetRowRepository.insertAll(batch);
                     total += batch.size();
                     batch.clear();
                 }
             }
             if (!batch.isEmpty()) {
-                datasetRowRepository.saveAll(batch);
+                datasetRowRepository.insertAll(batch);
                 total += batch.size();
             }
 

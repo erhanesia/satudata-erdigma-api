@@ -32,6 +32,19 @@ spring:
       hibernate:
         format_sql: true
 
+  datasource:
+    hikari:
+      data-source-properties:
+        # Driver Postgres menggabungkan satu batch INSERT menjadi beberapa
+        # INSERT banyak baris. Tanpa ini batch tetap dikirim sebagai ribuan
+        # perintah terpisah, dan impor 100.000 baris CSV sekitar 1,5 kali
+        # lebih lambat. Lihat DatasetRowRepositoryImpl.
+        #
+        # Ditulis di sini, bukan di URL datasource per profil, supaya dev dan
+        # prod pasti sama tanpa mengubah variabel lingkungan produksi. Hanya
+        # memengaruhi batch JDBC; perintah biasa dikirim apa adanya.
+        reWriteBatchedInserts: true
+
   security:
     oauth2:
       resourceserver:

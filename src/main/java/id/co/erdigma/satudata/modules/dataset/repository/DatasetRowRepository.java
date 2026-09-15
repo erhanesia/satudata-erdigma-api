@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 import id.co.erdigma.satudata.modules.dataset.entity.DatasetRow;
 
 @Repository
-public interface DatasetRowRepository extends JpaRepository<DatasetRow, Long> {
+public interface DatasetRowRepository extends JpaRepository<DatasetRow, Long>, DatasetRowRepositoryCustom {
 
     Page<DatasetRow> findAllByResourceIdOrderByRowNumberAsc(UUID resourceId, Pageable pageable);
 
