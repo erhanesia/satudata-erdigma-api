@@ -1,0 +1,100 @@
+# Data contoh di laptop dipindahkan dari dua divisi yang dihapus changeset 54.
+#
+# ---------------------------------------------------------------------------
+# Kenapa
+#
+# Changeset 54 menghapus lunak sembilan divisi yang hanya ada di HRIS dev. Dua
+# di antaranya, Marketplace dan Research & Innovation, masih ditunjuk dataset
+# dan pengguna contoh yang ditanam changeset 9, 27, dan 28.
+#
+# Membiarkannya tidak memunculkan galat, karena kunci asingnya tetap sah pada
+# baris yang terhapus lunak. Justru itu masalahnya: dataset tampil dengan divisi
+# yang tidak ada di daftar divisi, penyaring divisi tidak bisa memilihnya, dan
+# pengguna contoh menjadi admin dari divisi yang tidak terlihat. Semuanya salah
+# tanpa satu pun pesan galat.
+#
+# Tujuannya dipilih yang paling dekat maknanya dan masih hidup:
+#
+#   Marketplace            ke  E-Commerce   (EC)
+#   Research & Innovation  ke  Riset Team   (RT)
+#
+# ---------------------------------------------------------------------------
+# Kenapa berpagar dev
+#
+# Seluruh baris yang dipindahkan berasal dari seed berpagar `contextFilter: dev`,
+# jadi di produksi tidak ada yang cocok. Pagar di sini membuat hal itu tertulis,
+# bukan sekadar kebetulan "tidak ada baris yang kena".
+#
+# ---------------------------------------------------------------------------
+# Kenapa maju dan mundurnya tidak simetris
+#
+# Arah maju memindahkan SEMUA baris yang masih menunjuk kedua divisi itu, bukan
+# hanya id seed. Laptop lain bisa punya baris tambahan, misalnya pengguna HRIS
+# dev dari team Marketplace yang pernah login, dan baris seperti itu juga tidak
+# boleh tertinggal menunjuk divisi terhapus.
+#
+# Arah mundur hanya mengembalikan id seed yang diketahui. Mengembalikan "semua
+# isi E-Commerce ke Marketplace" akan ikut menyeret dataset dan pengguna yang
+# memang sejak awal milik E-Commerce. Rollback yang memulihkan separuh dengan
+# jujur lebih baik daripada yang memulihkan semuanya dengan salah.
+databaseChangeLog:
+  - changeSet:
+      id: "55"
+      author: author
+      # Data contoh: hanya ikut saat contexts=dev.
+      # Produksi berjalan dengan contexts=prod, jadi dilewati.
+      contextFilter: dev
+      changes:
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'EC')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'MKTP')"
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'RT')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'RI')"
+        - update:
+            tableName: users
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'EC')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'MKTP')"
+        - update:
+            tableName: users
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'RT')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'RI')"
+        - update:
+            tableName: collection
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'EC')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'MKTP')"
+        - update:
+            tableName: collection
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'RT')" }
+            where: "division_id = (SELECT id FROM division WHERE code = 'RI')"
+
+      # Hanya id seed yang diketahui, dan hanya kalau masih di tujuan pemindahan.
+      rollback:
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'MKTP')" }
+            where: "id IN ('e0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000009') AND division_id = (SELECT id FROM division WHERE code = 'EC')"
+        - update:
+            tableName: dataset
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'RI')" }
+            where: "id = 'e0000000-0000-4000-8000-000000000003' AND division_id = (SELECT id FROM division WHERE code = 'RT')"
+        - update:
+            tableName: users
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'MKTP')" }
+            where: "id IN ('90000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000011', '90000000-0000-4000-8000-000000000025') AND division_id = (SELECT id FROM division WHERE code = 'EC')"
+        - update:
+            tableName: users
+            columns:
+              - column: { name: division_id, valueComputed: "(SELECT id FROM division WHERE code = 'RI')" }
+            where: "id IN ('90000000-0000-4000-8000-000000000008', '90000000-0000-4000-8000-000000000013', '90000000-0000-4000-8000-000000000019', '90000000-0000-4000-8000-000000000022') AND division_id = (SELECT id FROM division WHERE code = 'RT')"

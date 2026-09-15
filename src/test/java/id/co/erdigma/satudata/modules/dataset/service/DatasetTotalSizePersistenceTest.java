@@ -18,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
+import id.co.erdigma.satudata.entity.User;
 import id.co.erdigma.satudata.enums.IdPrefix;
 import id.co.erdigma.satudata.exception.BusinessValidationException;
 import id.co.erdigma.satudata.modules.dataset.dto.DatasetRequestUpdateDTO;
@@ -89,6 +90,22 @@ class DatasetTotalSizePersistenceTest {
     private Dataset dataset;
     private DatasetResource lama;
 
+    /**
+     * Penyunting yang sedivisi dengan datasetnya.
+     *
+     * Semula di sini dikirim null, dan itu sah waktu kelas ini ditulis. Sejak
+     * PR #12, {@code AdminDivisionScope} menolak penyunting null dengan
+     * {@code AccessNotAllowedException}, sehingga kedua tes berhenti di pintu
+     * masuk dan tidak pernah sampai ke pemeriksaan ukuran yang seharusnya
+     * diuji. Yang pertama bahkan tetap gagal dengan cara yang terlihat wajar,
+     * hanya dengan lemparan yang salah.
+     *
+     * Sengaja bukan admin HRIS. Admin HRIS melewati pemeriksaan divisi, jadi
+     * tes ini akan menguji jalur yang tidak dilalui penyunting biasa. Polanya
+     * sama dengan DatasetFileEditPersistenceTest.
+     */
+    private User actor;
+
     @BeforeEach
     void seed() {
         dataset = new Dataset();
@@ -96,6 +113,9 @@ class DatasetTotalSizePersistenceTest {
         dataset.setTitle("Uji Batas Total");
         dataset.setDivision(divisionRepository.findAll().get(0));
         datasetRepository.save(dataset);
+
+        actor = new User();
+        actor.setDivision(dataset.getDivision());
     }
 
     private DatasetResource berkasLama(long sizeBytes) {
@@ -176,7 +196,7 @@ class DatasetTotalSizePersistenceTest {
         long sisaJatah = (isi + unggahan.getSize()) / 2;
         lama = berkasLama(DatasetFileService.MAX_TOTAL_BYTES - sisaJatah);
 
-        assertThatThrownBy(() -> datasetAdminService.update(null, dataset.getSlug(),
+        assertThatThrownBy(() -> datasetAdminService.update(actor, dataset.getSlug(),
                 permintaan(unggahan), List.of(unggahan)))
                 .isInstanceOf(BusinessValidationException.class)
                 .hasMessageContaining("setelah dibuka");
@@ -191,7 +211,7 @@ class DatasetTotalSizePersistenceTest {
         MockMultipartFile unggahan = terkirimTerkompresi();
         lama = berkasLama(1024);
 
-        datasetAdminService.update(null, dataset.getSlug(), permintaan(unggahan),
+        datasetAdminService.update(actor, dataset.getSlug(), permintaan(unggahan),
                 List.of(unggahan));
 
         DatasetResource tersimpan = datasetResourceRepository

@@ -44,6 +44,17 @@ public class Division {
     private String name;
     private UUID hrisTeamId;
 
+    /**
+     * Jumlah karyawan team HRIS padanannya, diambil sebagai potret di
+     * changeset 54. Menentukan tampil tidaknya divisi di daftar; lihat
+     * {@code DivisionRepository.findAllWithDownloads}.
+     *
+     * Bukan nilai hidup. Yang kelak memperbaruinya adalah fitur sinkronisasi
+     * khusus super admin HRIS, karena hanya token merekalah yang pasti boleh
+     * membaca daftar karyawan di HRIS.
+     */
+    private int hrisEmployeeCount;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

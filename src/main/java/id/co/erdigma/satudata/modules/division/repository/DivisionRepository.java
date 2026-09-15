@@ -32,9 +32,32 @@ public interface DivisionRepository extends JpaRepository<Division, UUID>, JpaSp
      * tingkat dataset juga menjamin halaman ini dan panel admin menyebut
      * bilangan yang sama.
      *
-     * {@code LEFT JOIN} wajib: divisi tanpa dataset harus tetap muncul dengan
-     * nol, bukan hilang dari daftar. Urutan kedua memakai nama supaya ke-25
-     * divisi bernilai nol tidak berpindah-pindah tempat tiap kali dimuat.
+     * {@code LEFT JOIN} wajib: divisi yang punya karyawan tetapi belum punya
+     * dataset harus tetap muncul dengan nol, bukan hilang dari daftar. Urutan
+     * kedua memakai nama supaya divisi bernilai nol tidak berpindah-pindah
+     * tempat tiap kali dimuat.
+     *
+     * <h2>Divisi yang tidak ditampilkan</h2>
+     *
+     * Sejak changeset 54 tabel ini memuat SELURUH team HRIS produksi, termasuk
+     * yang tidak punya karyawan. Barisnya sengaja tetap hidup supaya karyawan
+     * yang kelak masuk ke team itu langsung mendapat divisi saat login; yang
+     * disaring hanya daftarnya.
+     *
+     * Divisi tampil kalau punya karyawan ATAU punya dataset yang belum dihapus.
+     * Pengecualian kedua menjaga dataset tidak kehilangan tempatnya di daftar
+     * divisi ketika team pemiliknya kebetulan kosong. Penyaring divisi di panel
+     * admin ikut memakai daftar ini, dan itu aman: divisi yang tersembunyi pasti
+     * tidak punya dataset untuk disaring.
+     *
+     * Syaratnya ditaruh di {@code HAVING}, bukan {@code WHERE}, karena "punya
+     * dataset" baru bisa dinilai setelah baris dataset dikelompokkan per divisi.
+     * {@code COUNT(ds)} tidak menghitung baris kosong dari {@code LEFT JOIN},
+     * jadi divisi tanpa dataset bernilai nol di sana.
+     *
+     * Pencocokan divisi saat login TIDAK lewat sini, melainkan lewat
+     * {@link #findByHrisTeamIdAndDeletedAtIsNull}, dan memang tidak boleh ikut
+     * tersaring.
      *
      * @return baris {@code [Division, Long]} — entitas dan jumlah unduhannya
      */
@@ -44,6 +67,7 @@ public interface DivisionRepository extends JpaRepository<Division, UUID>, JpaSp
               LEFT JOIN Dataset ds ON ds.division = d AND ds.deletedAt IS NULL
              WHERE d.deletedAt IS NULL
              GROUP BY d
+            HAVING d.hrisEmployeeCount > 0 OR COUNT(ds) > 0
              ORDER BY COALESCE(SUM(ds.downloads), 0) DESC, d.name ASC
             """)
     List<Object[]> findAllWithDownloads();
